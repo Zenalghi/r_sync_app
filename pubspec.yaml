@@ -42,6 +42,28 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   rename: ^3.0.2
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#181E25"
+  image_path: "assets/icons/ico.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icons/ico.png"
+    background_color: "#181E25"
+    theme_color: "#178697"
+  windows:
+    generate: true
+    image_path: "assets/icons/ico.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/icons/ico.png"
+
 
 flutter:
   uses-material-design: true
