@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'constants/app_theme.dart';
 import 'providers/esp_provider.dart';
 import 'providers/schedule_provider.dart';
@@ -18,14 +19,16 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => ThemeProvider(storageService),
-        ),
+        ChangeNotifierProvider(create: (_) => ThemeProvider(storageService)),
         ChangeNotifierProvider(
           create: (_) => EspProvider(apiService, storageService),
         ),
-        ChangeNotifierProvider(
-          create: (_) => ScheduleProvider(apiService),
+        ChangeNotifierProxyProvider<EspProvider, ScheduleProvider>(
+          create: (context) =>
+              ScheduleProvider(apiService, context.read<EspProvider>()),
+          update: (context, esp, schedule) =>
+              (schedule ?? ScheduleProvider(apiService, esp))
+                ..updateEspProvider(esp),
         ),
       ],
       child: const RSyncApp(),

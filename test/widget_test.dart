@@ -145,5 +145,26 @@ void main() {
       expect(scheduleProvider.getJobs(1).length, 4);
       expect(scheduleProvider.canAddJob(1), false);
     });
+
+    test('Automatically parses and displays configured schedules (e.g. 17:30 ON)', () {
+      final scheduleProvider = ScheduleProvider(ApiService());
+
+      // Simulate incoming status from ESP32 containing 17:30 ON in slot 0, and slot 1..3 empty
+      scheduleProvider.updateFromEspStatus([
+        const ScheduleJob(hour: 17, minute: 30, action: 'ON', enabled: true),
+        ScheduleJob.empty(),
+        ScheduleJob.empty(),
+        ScheduleJob.empty(),
+      ], []);
+
+      // Verifies that slot 0 is retained and empty slots are filtered out
+      expect(scheduleProvider.getJobs(1).length, 1);
+      expect(scheduleProvider.getJobs(1).first.timeString, '17:30');
+      expect(scheduleProvider.getJobs(1).first.action, 'ON');
+      expect(scheduleProvider.getJobs(1).first.enabled, true);
+
+      // Smart recommendation for next job should now be OFF
+      expect(scheduleProvider.getNextRecommendedAction(1), 'OFF');
+    });
   });
 }

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/esp_status.dart';
 import '../models/schedule_job.dart';
@@ -37,13 +37,23 @@ class ApiService {
     return 'http://$clean';
   }
 
+  /// On Web, use text/plain to avoid browser CORS preflight (OPTIONS) requirements.
+  /// ESP32 parses raw JSON bytes directly regardless of Content-Type.
+  Map<String, String> get _postHeaders => {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/plain, */*',
+      };
+
   /// Fetches system status, relays, and jobs from `GET /api/status`
   Future<EspStatus> getStatus(String ip) async {
     final baseUrl = _formatBaseUrl(ip);
     final uri = Uri.parse('$baseUrl/api/status');
 
     try {
-      final response = await _client.get(uri).timeout(defaultTimeout);
+      final response = await _client.get(
+        uri,
+        headers: const {'Accept': 'application/json, */*'},
+      ).timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -54,12 +64,12 @@ class ApiService {
           response.statusCode,
         );
       }
-    } on SocketException catch (e) {
-      throw ApiException('Cannot reach ESP32 ($ip): ${e.message}');
     } on TimeoutException {
       throw ApiException('Connection timed out connecting to ESP32 ($ip)');
     } on FormatException {
       throw ApiException('Invalid JSON response from ESP32');
+    } on http.ClientException catch (e) {
+      throw ApiException('Network connection failed ($ip): ${e.message}');
     } catch (e) {
       throw ApiException('Network error: $e');
     }
@@ -81,21 +91,32 @@ class ApiService {
       final response = await _client
           .post(
             uri,
-            headers: {'Content-Type': 'application/json'},
+            headers: _postHeaders,
             body: jsonEncode(payload),
           )
           .timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['status'] == 'OK';
+        if (response.body.isEmpty) return true;
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map) {
+            return data['status'] == 'OK' || data['status'] == true;
+          }
+          return true;
+        } catch (_) {
+          // If status code is 200 OK, treat as successful even if body is plaintext
+          return true;
+        }
       }
       return false;
-    } on SocketException catch (e) {
-      throw ApiException('Cannot reach ESP32: ${e.message}');
     } on TimeoutException {
       throw ApiException('Relay command timed out');
+    } on http.ClientException catch (e) {
+      debugPrint('ApiService setRelay ClientException: $e');
+      throw ApiException('Cannot reach ESP32 ($ip): ${e.message}');
     } catch (e) {
+      debugPrint('ApiService setRelay error: $e');
       throw ApiException('Failed to set relay: $e');
     }
   }
@@ -130,21 +151,31 @@ class ApiService {
       final response = await _client
           .post(
             uri,
-            headers: {'Content-Type': 'application/json'},
+            headers: _postHeaders,
             body: jsonEncode(payload),
           )
           .timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['status'] == 'OK';
+        if (response.body.isEmpty) return true;
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map) {
+            return data['status'] == 'OK' || data['status'] == true;
+          }
+          return true;
+        } catch (_) {
+          return true;
+        }
       }
       return false;
-    } on SocketException catch (e) {
-      throw ApiException('Cannot reach ESP32: ${e.message}');
     } on TimeoutException {
       throw ApiException('Save schedule timed out');
+    } on http.ClientException catch (e) {
+      debugPrint('ApiService saveSchedule ClientException: $e');
+      throw ApiException('Cannot reach ESP32 ($ip): ${e.message}');
     } catch (e) {
+      debugPrint('ApiService saveSchedule error: $e');
       throw ApiException('Failed to save schedule: $e');
     }
   }

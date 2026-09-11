@@ -20,19 +20,6 @@ class SchedulerScreen extends StatefulWidget {
 class _SchedulerScreenState extends State<SchedulerScreen> {
   int _selectedChannel = 1; // 1 or 2
 
-  @override
-  void initState() {
-    super.initState();
-    // Synchronize initial jobs from ESP32 status
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final espStatus = context.read<EspProvider>().status;
-      context.read<ScheduleProvider>().updateFromEspStatus(
-            espStatus.jobs1,
-            espStatus.jobs2,
-          );
-    });
-  }
-
   void _openAddJobModal() {
     final scheduleProvider = context.read<ScheduleProvider>();
     final espProvider = context.read<EspProvider>();
@@ -208,17 +195,6 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheduleProvider = context.watch<ScheduleProvider>();
     final espProvider = context.watch<EspProvider>();
-
-    // Listen to status updates from ESP32 if not saving
-    if (!scheduleProvider.isSaving && espProvider.status.jobs1.isNotEmpty) {
-      // Sync softly
-      final esp1 = espProvider.status.jobs1;
-      final esp2 = espProvider.status.jobs2;
-      // Only sync if counts or values changed
-      if (esp1.isNotEmpty || esp2.isNotEmpty) {
-        // Safe update
-      }
-    }
 
     final currentJobs = scheduleProvider.getJobs(_selectedChannel);
     final canAdd = scheduleProvider.canAddJob(_selectedChannel);

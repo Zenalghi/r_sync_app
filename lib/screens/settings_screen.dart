@@ -66,12 +66,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isOk = await espProvider.testConnection(ipToTest);
     stopwatch.stop();
 
+    if (isOk) {
+      await espProvider.setEspIp(ipToTest);
+    }
+
     if (mounted) {
       setState(() {
         _isTesting = false;
         _testResult = isOk;
         _testMessage = isOk
-            ? 'Terhubung! Respon ${stopwatch.elapsedMilliseconds} ms'
+            ? 'Terhubung & IP Tersimpan! Respon ${stopwatch.elapsedMilliseconds} ms'
             : 'Gagal terhubung ke $ipToTest. Cek Wi-Fi & IP.';
       });
     }

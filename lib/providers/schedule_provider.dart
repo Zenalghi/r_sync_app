@@ -1,12 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/schedule_job.dart';
 import '../services/api_service.dart';
+import 'esp_provider.dart';
 
 /// Provider for managing Smart Scheduling logic for ESP32 Relay 1 and Relay 2.
-/// Handles dynamic presentation (no blank slots), chronological sorting,
-/// smart alternating action suggestions (ON -> OFF -> ON), and 4-slot padded synchronization.
+/// Directly synchronizes with EspProvider so incoming jobs are immediately reflected
+/// across all screens without manual intervention.
 class ScheduleProvider extends ChangeNotifier {
   final ApiService _apiService;
+  EspProvider? _espProvider;
 
   static const int maxJobs = 4;
 
@@ -15,7 +18,31 @@ class ScheduleProvider extends ChangeNotifier {
   bool _isSaving = false;
   String? _errorMessage;
 
-  ScheduleProvider(this._apiService);
+  ScheduleProvider(this._apiService, [this._espProvider]) {
+    _bindEspProvider();
+  }
+
+  void updateEspProvider(EspProvider espProvider) {
+    if (_espProvider == espProvider) return;
+    _espProvider?.removeListener(_onEspStatusChanged);
+    _espProvider = espProvider;
+    _bindEspProvider();
+  }
+
+  void _bindEspProvider() {
+    if (_espProvider == null) return;
+    _espProvider!.addListener(_onEspStatusChanged);
+    // Initial sync
+    _onEspStatusChanged();
+  }
+
+  void _onEspStatusChanged() {
+    if (_isSaving || _espProvider == null) return;
+    updateFromEspStatus(
+      _espProvider!.status.jobs1,
+      _espProvider!.status.jobs2,
+    );
+  }
 
   List<ScheduleJob> get jobs1 => List.unmodifiable(_jobs1);
   List<ScheduleJob> get jobs2 => List.unmodifiable(_jobs2);
@@ -33,19 +60,26 @@ class ScheduleProvider extends ChangeNotifier {
   }
 
   /// Synchronizes incoming ESP32 status jobs into the smart scheduler
-  void updateFromEspStatus(List<ScheduleJob> espJobs1, List<ScheduleJob> espJobs2) {
+  void updateFromEspStatus(
+      List<ScheduleJob> espJobs1, List<ScheduleJob> espJobs2) {
+    if (_isSaving) return;
+
     // Filter out blank/empty slots from ESP32 so only configured schedules appear in the UI
-    _jobs1 = espJobs1
+    final newJobs1 = espJobs1
         .where((j) => j.enabled || j.hour != 0 || j.minute != 0)
         .toList()
       ..sort((a, b) => a.totalMinutes.compareTo(b.totalMinutes));
 
-    _jobs2 = espJobs2
+    final newJobs2 = espJobs2
         .where((j) => j.enabled || j.hour != 0 || j.minute != 0)
         .toList()
       ..sort((a, b) => a.totalMinutes.compareTo(b.totalMinutes));
 
-    notifyListeners();
+    if (!listEquals(_jobs1, newJobs1) || !listEquals(_jobs2, newJobs2)) {
+      _jobs1 = newJobs1;
+      _jobs2 = newJobs2;
+      notifyListeners();
+    }
   }
 
   /// Smart suggestion: Alternates action based on the previous job
@@ -157,6 +191,8 @@ class ScheduleProvider extends ChangeNotifier {
         } else {
           _jobs2 = newList;
         }
+        // Notify EspProvider to refresh authoritative status from ESP32
+        _espProvider?.refreshStatus();
         return true;
       } else {
         _errorMessage = 'Gagal menyimpan jadwal ke ESP32';
@@ -169,5 +205,11 @@ class ScheduleProvider extends ChangeNotifier {
       _isSaving = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _espProvider?.removeListener(_onEspStatusChanged);
+    super.dispose();
   }
 }
