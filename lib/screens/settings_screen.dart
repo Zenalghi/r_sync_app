@@ -238,6 +238,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 28),
 
+          // Section: Physical OLED Display Control
+          _buildSectionHeader(
+            icon: Icons.smart_display_rounded,
+            title: 'Layar OLED Perangkat',
+            isDark: isDark,
+          ),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'PILIHAN HALAMAN LAYAR FISIK',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted,
+                      ),
+                    ),
+                    if (espProvider.isSwitchingDisplay)
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.orange,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildOledPageOption(
+                        title: 'Halaman 1: Status',
+                        subtitle: 'WiFi, Jam, Relay',
+                        icon: Icons.info_outline_rounded,
+                        pageIndex: 0,
+                        currentPage: espProvider.status.displayPage,
+                        onTap: espProvider.isConnected &&
+                                !espProvider.isSwitchingDisplay
+                            ? () => espProvider.setDisplayPage(0)
+                            : null,
+                        isDark: isDark,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildOledPageOption(
+                        title: 'Halaman 2: Jadwal',
+                        subtitle: 'Daftar Scheduler',
+                        icon: Icons.calendar_month_rounded,
+                        pageIndex: 1,
+                        currentPage: espProvider.status.displayPage,
+                        onTap: espProvider.isConnected &&
+                                !espProvider.isSwitchingDisplay
+                            ? () => espProvider.setDisplayPage(1)
+                            : null,
+                        isDark: isDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
           // Section 2: Appearance & Theme
           _buildSectionHeader(
             icon: Icons.palette_rounded,
@@ -566,6 +652,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOledPageOption({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required int pageIndex,
+    required int currentPage,
+    required VoidCallback? onTap,
+    required bool isDark,
+  }) {
+    final isSelected = currentPage == pageIndex;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.orange.withValues(alpha: 0.15)
+              : (isDark ? AppColors.darkSurface : Colors.grey.shade100),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.orange : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? AppColors.orange
+                  : (isDark
+                        ? AppColors.darkTextSecondary
+                        : Colors.grey.shade600),
+              size: 22,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? AppColors.orange
+                    : (isDark
+                          ? AppColors.darkTextSecondary
+                          : Colors.grey.shade700),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 10,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted,
+              ),
+            ),
+          ],
         ),
       ),
     );

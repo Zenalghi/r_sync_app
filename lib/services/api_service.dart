@@ -180,6 +180,49 @@ class ApiService {
     }
   }
 
+  /// Changes or toggles the OLED display page on ESP32 via `POST /api/display`
+  /// If [page] is null or negative, ESP32 toggles to the next page.
+  Future<int?> setDisplayPage(String ip, [int? page]) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/display');
+
+    final payload = <String, dynamic>{};
+    if (page != null && page >= 0) {
+      payload['page'] = page;
+    }
+
+    try {
+      final response = await _client
+          .post(
+            uri,
+            headers: _postHeaders,
+            body: jsonEncode(payload),
+          )
+          .timeout(defaultTimeout);
+
+      if (response.statusCode == 200) {
+        if (response.body.isNotEmpty) {
+          try {
+            final data = jsonDecode(response.body);
+            if (data is Map && data['displayPage'] != null) {
+              return (data['displayPage'] as num).toInt();
+            }
+          } catch (_) {}
+        }
+        return page ?? 0;
+      }
+      return null;
+    } on TimeoutException {
+      throw ApiException('Display switch timed out');
+    } on http.ClientException catch (e) {
+      debugPrint('ApiService setDisplayPage ClientException: $e');
+      throw ApiException('Cannot reach ESP32 ($ip): ${e.message}');
+    } catch (e) {
+      debugPrint('ApiService setDisplayPage error: $e');
+      throw ApiException('Failed to set OLED display page: $e');
+    }
+  }
+
   /// Quick connectivity ping test
   Future<bool> testConnection(String ip) async {
     try {

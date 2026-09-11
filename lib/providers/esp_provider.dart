@@ -222,6 +222,46 @@ class EspProvider extends ChangeNotifier {
     }
   }
 
+  bool _isSwitchingDisplay = false;
+  bool get isSwitchingDisplay => _isSwitchingDisplay;
+
+  /// Toggles OLED display between Page 0 (Status) and Page 1 (Scheduler)
+  Future<bool> toggleDisplayPage() async {
+    final nextPage = (_status.displayPage + 1) % 2;
+    return setDisplayPage(nextPage);
+  }
+
+  /// Sets specific OLED display page (0 = Status & Time, 1 = Scheduler)
+  Future<bool> setDisplayPage(int page) async {
+    if (_isSwitchingDisplay) return false;
+    _isSwitchingDisplay = true;
+
+    final previousPage = _status.displayPage;
+    // Optimistic UI update
+    _status = _status.copyWith(displayPage: page);
+    notifyListeners();
+
+    try {
+      final updatedPage = await _apiService.setDisplayPage(_espIp, page);
+      if (updatedPage == null) {
+        _status = _status.copyWith(displayPage: previousPage);
+        notifyListeners();
+        return false;
+      }
+      _status = _status.copyWith(displayPage: updatedPage);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error changing OLED display page: $e');
+      _status = _status.copyWith(displayPage: previousPage);
+      notifyListeners();
+      return false;
+    } finally {
+      _isSwitchingDisplay = false;
+      notifyListeners();
+    }
+  }
+
   /// Merges new ESP32 status while protecting recently manually toggled relay states
   /// from being overwritten by delayed/stale in-flight polling responses.
   EspStatus _mergeStatusSafely(EspStatus incoming) {
@@ -237,9 +277,12 @@ class EspProvider extends ChangeNotifier {
             now.difference(_lastToggleTimeRelay2!).inMilliseconds <
                 _toggleProtectionWindowMs);
 
+    final preserveDisplay = _isSwitchingDisplay;
+
     return incoming.copyWith(
       relay1: preserveRelay1 ? _status.relay1 : incoming.relay1,
       relay2: preserveRelay2 ? _status.relay2 : incoming.relay2,
+      displayPage: preserveDisplay ? _status.displayPage : incoming.displayPage,
     );
   }
 

@@ -7,6 +7,7 @@ class EspStatus {
   final String time;
   final bool relay1;
   final bool relay2;
+  final int displayPage;
   final List<ScheduleJob> jobs1;
   final List<ScheduleJob> jobs2;
 
@@ -16,6 +17,7 @@ class EspStatus {
     required this.time,
     required this.relay1,
     required this.relay2,
+    this.displayPage = 0,
     required this.jobs1,
     required this.jobs2,
   });
@@ -28,6 +30,7 @@ class EspStatus {
       time: 'Not Synced',
       relay1: false,
       relay2: false,
+      displayPage: 0,
       jobs1: [],
       jobs2: [],
     );
@@ -43,6 +46,7 @@ class EspStatus {
       time: json['time'] as String? ?? 'Not Synced',
       relay1: (json['relay1'] as String?)?.toUpperCase() == 'ON',
       relay2: (json['relay2'] as String?)?.toUpperCase() == 'ON',
+      displayPage: json['displayPage'] as int? ?? 0,
       jobs1: jobs1Raw
           .map((item) => ScheduleJob.fromJson(item as Map<String, dynamic>))
           .toList(),
@@ -115,6 +119,7 @@ class EspStatus {
     String? time,
     bool? relay1,
     bool? relay2,
+    int? displayPage,
     List<ScheduleJob>? jobs1,
     List<ScheduleJob>? jobs2,
   }) {
@@ -124,6 +129,7 @@ class EspStatus {
       time: time ?? this.time,
       relay1: relay1 ?? this.relay1,
       relay2: relay2 ?? this.relay2,
+      displayPage: displayPage ?? this.displayPage,
       jobs1: jobs1 ?? this.jobs1,
       jobs2: jobs2 ?? this.jobs2,
     );
