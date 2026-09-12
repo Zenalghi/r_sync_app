@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 import '../models/schedule_job.dart';
 
@@ -27,7 +28,9 @@ class ScheduleCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isOnAction = job.isActionOn;
     final actionColor = isOnAction ? AppColors.teal : AppColors.orange;
-    final actionLight = isOnAction ? AppColors.tealLight : AppColors.orangeLight;
+    final actionLight = isOnAction
+        ? AppColors.tealLight
+        : AppColors.orangeLight;
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 250),
@@ -52,31 +55,31 @@ class ScheduleCard extends StatelessWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
               // Clock Icon + Time
               Container(
-                width: 46,
-                height: 46,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: isDark
                       ? (isOnAction
-                          ? AppColors.tealContainerDark
-                          : AppColors.orangeContainerDark)
+                            ? AppColors.tealContainerDark
+                            : AppColors.orangeContainerDark)
                       : (isOnAction
-                          ? AppColors.tealContainer
-                          : AppColors.orangeContainer),
+                            ? AppColors.tealContainer
+                            : AppColors.orangeContainer),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.access_time_filled_rounded,
                   color: isOnAction ? actionColor : actionLight,
-                  size: 24,
+                  size: 22,
                 ),
               ),
 
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
 
               // Time & Action details
               Expanded(
@@ -96,7 +99,7 @@ class ScheduleCard extends StatelessWidget {
                                 : AppColors.lightTextPrimary,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
                           'WIB',
                           style: TextStyle(
@@ -110,20 +113,20 @@ class ScheduleCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Action Pill: NYALAKAN / MATIKAN
+                    // Action Pill: NYALAKAN / MATIKAN + Status
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
+                            horizontal: 7,
+                            vertical: 2.5,
                           ),
                           decoration: BoxDecoration(
                             color: actionColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            isOnAction ? '⚡ NYALAKAN (ON)' : '⭕ MATIKAN (OFF)',
+                            isOnAction ? '⚡ NYALAKAN' : '⭕ MATIKAN',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -132,17 +135,20 @@ class ScheduleCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          job.enabled ? 'Aktif' : 'Nonaktif',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: job.enabled
-                                ? AppColors.emerald
-                                : (isDark
-                                    ? AppColors.darkTextMuted
-                                    : AppColors.lightTextMuted),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            job.enabled ? 'Aktif' : 'Nonaktif',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: job.enabled
+                                  ? AppColors.emerald
+                                  : (isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted),
+                            ),
                           ),
                         ),
                       ],
@@ -152,15 +158,20 @@ class ScheduleCard extends StatelessWidget {
               ),
 
               // Enable/Disable switch
-              Switch.adaptive(
-                value: job.enabled,
-                onChanged: onToggleEnabled,
-                activeThumbColor: actionLight,
-                activeTrackColor: actionColor.withValues(alpha: 0.5),
+              Transform.scale(
+                scale: 0.85,
+                child: Switch.adaptive(
+                  value: job.enabled,
+                  onChanged: onToggleEnabled,
+                  activeThumbColor: actionLight,
+                  activeTrackColor: actionColor.withValues(alpha: 0.5),
+                ),
               ),
 
               // Popup menu: Edit & Delete
               PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 icon: Icon(
                   Icons.more_vert_rounded,
                   color: isDark
@@ -193,8 +204,11 @@ class ScheduleCard extends StatelessWidget {
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline_rounded,
-                            size: 18, color: AppColors.error),
+                        Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
                         SizedBox(width: 10),
                         Text('Hapus', style: TextStyle(color: AppColors.error)),
                       ],
