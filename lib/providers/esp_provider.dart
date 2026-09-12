@@ -167,6 +167,11 @@ class EspProvider extends ChangeNotifier {
     return _apiService.testConnection(ipToTest);
   }
 
+  /// Remotely requests ESP32 to clear Wi-Fi and open portal
+  Future<bool> resetWifi() async {
+    return _apiService.resetWifi(_espIp);
+  }
+
   /// Configures auto-refresh polling
   Future<void> setAutoRefresh(bool enabled) async {
     if (_autoRefresh == enabled) return;

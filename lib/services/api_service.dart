@@ -223,6 +223,21 @@ class ApiService {
     }
   }
 
+  /// Triggers ESP32 to clear stored Wi-Fi credentials and launch Config Portal 'R-Sync'
+  Future<bool> resetWifi(String ip) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/wifi/reset');
+    try {
+      final response = await _client
+          .post(uri, headers: _postHeaders)
+          .timeout(defaultTimeout);
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('ApiService resetWifi error: $e');
+      return false;
+    }
+  }
+
   /// Quick connectivity ping test
   Future<bool> testConnection(String ip) async {
     try {

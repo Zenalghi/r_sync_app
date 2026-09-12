@@ -81,6 +81,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _confirmResetWifi() async {
+    final espProvider = context.read<EspProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.wifi_protected_setup_rounded, color: AppColors.orange),
+            SizedBox(width: 10),
+            Expanded(child: Text('Reset Wi-Fi ESP32?')),
+          ],
+        ),
+        content: const Text(
+          'ESP32 akan menghapus kredensial Wi-Fi lama dan membuka Access Point "R-Sync" (192.168.4.1) untuk dikonfigurasi ke jaringan Wi-Fi baru.\n\nPerangkat akan restart otomatis.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reset & Buka Portal'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final ok = await espProvider.resetWifi();
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              ok
+                  ? 'Perintah reset terkirim! Hubungkan HP ke Wi-Fi "R-Sync" (192.168.4.1).'
+                  : 'Gagal mengirim perintah reset ke ESP32.',
+            ),
+            backgroundColor: ok ? AppColors.orange : AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -232,6 +283,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 14),
+                Divider(
+                  height: 1,
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: espProvider.isConnected ? _confirmResetWifi : null,
+                  icon: const Icon(
+                    Icons.wifi_protected_setup_rounded,
+                    size: 18,
+                  ),
+                  label: const Text('Pindah Wi-Fi / Buka Portal ESP32'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.orange,
+                    side: BorderSide(
+                      color: espProvider.isConnected
+                          ? AppColors.orange
+                          : (isDark
+                                ? AppColors.darkBorder
+                                : Colors.grey.shade400),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -294,7 +372,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         icon: Icons.info_outline_rounded,
                         pageIndex: 0,
                         currentPage: espProvider.status.displayPage,
-                        onTap: espProvider.isConnected &&
+                        onTap:
+                            espProvider.isConnected &&
                                 !espProvider.isSwitchingDisplay
                             ? () => espProvider.setDisplayPage(0)
                             : null,
@@ -309,7 +388,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         icon: Icons.calendar_month_rounded,
                         pageIndex: 1,
                         currentPage: espProvider.status.displayPage,
-                        onTap: espProvider.isConnected &&
+                        onTap:
+                            espProvider.isConnected &&
                                 !espProvider.isSwitchingDisplay
                             ? () => espProvider.setDisplayPage(1)
                             : null,
