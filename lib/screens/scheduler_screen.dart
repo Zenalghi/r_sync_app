@@ -60,7 +60,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Jadwal ${newJob.timeString} (${newJob.action}) berhasil disimpan ke ESP32!',
+                  'Jadwal ${newJob.timeString} (${newJob.action}) berhasil disimpan!',
                 ),
                 backgroundColor: AppColors.emerald,
                 behavior: SnackBarBehavior.floating,

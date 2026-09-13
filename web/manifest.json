@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#181E25",
     "theme_color": "#178697",
-    "description": "A new Flutter project.",
+    "description": "R-Sync Smart Relay Controller Application",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

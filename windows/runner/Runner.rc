@@ -89,12 +89,12 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "R-Sync" "\0"
+            VALUE "CompanyName", "R-Sync" "\0"
+            VALUE "FileDescription", "R-Sync Relay Controller" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "r_sync_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "r_sync_app.exe" "\0"
+            VALUE "InternalName", "R-Sync" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 R-Sync. All rights reserved." "\0"
+            VALUE "OriginalFilename", "R-Sync.exe" "\0"
             VALUE "ProductName", "R-Sync" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
