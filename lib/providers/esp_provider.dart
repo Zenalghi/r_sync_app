@@ -1,5 +1,9 @@
+//lib\providers\esp_provider.dart
+
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+
 import '../models/esp_status.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -272,23 +276,72 @@ class EspProvider extends ChangeNotifier {
   EspStatus _mergeStatusSafely(EspStatus incoming) {
     final now = DateTime.now();
 
-    final preserveRelay1 = _isTogglingRelay1 ||
+    final preserveRelay1 =
+        _isTogglingRelay1 ||
         (_lastToggleTimeRelay1 != null &&
             now.difference(_lastToggleTimeRelay1!).inMilliseconds <
                 _toggleProtectionWindowMs);
 
-    final preserveRelay2 = _isTogglingRelay2 ||
+    final preserveRelay2 =
+        _isTogglingRelay2 ||
         (_lastToggleTimeRelay2 != null &&
             now.difference(_lastToggleTimeRelay2!).inMilliseconds <
                 _toggleProtectionWindowMs);
 
     final preserveDisplay = _isSwitchingDisplay;
 
+    final preservePolarity =
+        _isChangingPolarity ||
+        (_lastChangePolarityTime != null &&
+            now.difference(_lastChangePolarityTime!).inMilliseconds <
+                _toggleProtectionWindowMs);
+
     return incoming.copyWith(
       relay1: preserveRelay1 ? _status.relay1 : incoming.relay1,
       relay2: preserveRelay2 ? _status.relay2 : incoming.relay2,
       displayPage: preserveDisplay ? _status.displayPage : incoming.displayPage,
+      activeLow: preservePolarity ? _status.activeLow : incoming.activeLow,
     );
+  }
+
+  bool _isChangingPolarity = false;
+  bool get isChangingPolarity => _isChangingPolarity;
+  DateTime? _lastChangePolarityTime;
+
+  /// Updates relay active logic polarity (Active LOW vs Active HIGH)
+  Future<bool> setRelayPolarity(bool activeLow) async {
+    if (_isChangingPolarity) return false;
+    _isChangingPolarity = true;
+    _lastChangePolarityTime = DateTime.now(); // Record start time
+
+    final previousActiveLow = _status.activeLow;
+    _status = _status.copyWith(
+      activeLow: activeLow,
+      relay1: false,
+      relay2: false,
+    );
+    notifyListeners();
+
+    try {
+      final success = await _apiService.setRelayPolarity(_espIp, activeLow);
+      if (!success) {
+        _status = _status.copyWith(activeLow: previousActiveLow);
+        notifyListeners();
+        return false;
+      }
+      _lastChangePolarityTime = DateTime.now(); // Extend protection window
+      await refreshStatus();
+      return true;
+    } catch (e) {
+      debugPrint('Error changing relay polarity: $e');
+      _status = _status.copyWith(activeLow: previousActiveLow);
+      _errorMessage = 'Gagal mengubah polaritas relay: $e';
+      notifyListeners();
+      return false;
+    } finally {
+      _isChangingPolarity = false;
+      notifyListeners();
+    }
   }
 
   @override

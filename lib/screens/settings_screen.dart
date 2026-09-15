@@ -1,3 +1,5 @@
+//lib\screens\settings_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -7,7 +9,8 @@ import '../providers/esp_provider.dart';
 import '../providers/theme_provider.dart';
 
 /// Settings screen for configuring ESP32 local IP address,
-/// Light/Dark theme switching, background polling interval, and device diagnostics.
+/// Relay Active LOW/HIGH polarity, Light/Dark theme switching,
+/// background polling interval, and device diagnostics.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -94,6 +97,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? 'Terhubung & IP Tersimpan! Respon ${stopwatch.elapsedMilliseconds} ms'
             : 'Gagal terhubung ke $ipToTest. Cek Wi-Fi & IP.';
       });
+    }
+  }
+
+  Future<void> _confirmChangePolarity(bool targetActiveLow) async {
+    final espProvider = context.read<EspProvider>();
+    if (espProvider.status.activeLow == targetActiveLow) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final targetText = targetActiveLow ? 'Active LOW' : 'Active HIGH';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Ubah Polaritas ke $targetText?')),
+          ],
+        ),
+        content: Text(
+          'Mengubah polaritas logika relay ke $targetText akan mematikan (OFF) semua sakelar relay secara otomatis demi keamanan hardware.\n\nLanjutkan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.teal,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Terapkan'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await espProvider.setRelayPolarity(targetActiveLow);
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Polaritas relay berhasil diubah ke $targetText!'
+                  : 'Gagal mengubah polaritas relay pada ESP32.',
+            ),
+            backgroundColor: success ? AppColors.teal : AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -332,7 +390,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 28),
 
-          // Section: Physical OLED Display Control
+          // Section 2: Relay Hardware Polarity Control (Active LOW vs Active HIGH)
+          _buildSectionHeader(
+            icon: Icons.electric_bolt_rounded,
+            title: 'Konfigurasi Polaritas Relay',
+            isDark: isDark,
+          ),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'LOGIKA TRIGGER HARDWARE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted,
+                      ),
+                    ),
+                    if (espProvider.isChangingPolarity)
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.teal,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildPolarityOption(
+                        title: 'Active LOW',
+                        subtitle: 'ON = LOW (0V)\nOFF = HIGH (3.3V)',
+                        icon: Icons.arrow_downward_rounded,
+                        isActiveLowOption: true,
+                        currentActiveLow: espProvider.status.activeLow,
+                        onTap:
+                            espProvider.isConnected &&
+                                !espProvider.isChangingPolarity
+                            ? () => _confirmChangePolarity(true)
+                            : null,
+                        isDark: isDark,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildPolarityOption(
+                        title: 'Active HIGH',
+                        subtitle: 'ON = HIGH (3.3V)\nOFF = LOW (0V)',
+                        icon: Icons.arrow_upward_rounded,
+                        isActiveLowOption: false,
+                        currentActiveLow: espProvider.status.activeLow,
+                        onTap:
+                            espProvider.isConnected &&
+                                !espProvider.isChangingPolarity
+                            ? () => _confirmChangePolarity(false)
+                            : null,
+                        isDark: isDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // Section 3: Physical OLED Display Control
           _buildSectionHeader(
             icon: Icons.smart_display_rounded,
             title: 'Layar OLED Perangkat',
@@ -420,7 +566,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 28),
 
-          // Section 2: Appearance & Theme
+          // Section 4: Appearance & Theme
           _buildSectionHeader(
             icon: Icons.palette_rounded,
             title: 'Tampilan & Tema',
@@ -489,7 +635,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 28),
 
-          // Section 3: Synchronization & Polling
+          // Section 5: Synchronization & Polling
           _buildSectionHeader(
             icon: Icons.sync_rounded,
             title: 'Sinkronisasi & Pembaruan',
@@ -585,7 +731,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 28),
 
-          // Section 4: Device & App Info
+          // Section 6: Device & App Info
           _buildSectionHeader(
             icon: Icons.info_outline_rounded,
             title: 'Tentang Aplikasi',
@@ -692,6 +838,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPolarityOption({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isActiveLowOption,
+    required bool currentActiveLow,
+    required VoidCallback? onTap,
+    required bool isDark,
+  }) {
+    final isSelected = currentActiveLow == isActiveLowOption;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.teal.withValues(alpha: 0.15)
+              : (isDark ? AppColors.darkSurface : Colors.grey.shade100),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.teal : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? AppColors.teal
+                  : (isDark
+                        ? AppColors.darkTextSecondary
+                        : Colors.grey.shade600),
+              size: 22,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? AppColors.teal
+                    : (isDark
+                          ? AppColors.darkTextSecondary
+                          : Colors.grey.shade700),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                height: 1.2,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -820,4 +1035,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
-

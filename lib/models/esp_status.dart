@@ -1,3 +1,5 @@
+//lib/models/esp_status.dart
+
 import 'schedule_job.dart';
 
 /// Represents the status payload returned by the ESP32 `GET /api/status` endpoint.
@@ -8,6 +10,7 @@ class EspStatus {
   final bool relay1;
   final bool relay2;
   final int displayPage;
+  final bool activeLow;
   final List<ScheduleJob> jobs1;
   final List<ScheduleJob> jobs2;
 
@@ -18,6 +21,7 @@ class EspStatus {
     required this.relay1,
     required this.relay2,
     this.displayPage = 0,
+    this.activeLow = true,
     required this.jobs1,
     required this.jobs2,
   });
@@ -31,6 +35,7 @@ class EspStatus {
       relay1: false,
       relay2: false,
       displayPage: 0,
+      activeLow: true,
       jobs1: [],
       jobs2: [],
     );
@@ -47,6 +52,7 @@ class EspStatus {
       relay1: (json['relay1'] as String?)?.toUpperCase() == 'ON',
       relay2: (json['relay2'] as String?)?.toUpperCase() == 'ON',
       displayPage: json['displayPage'] as int? ?? 0,
+      activeLow: json['activeLow'] as bool? ?? true,
       jobs1: jobs1Raw
           .map((item) => ScheduleJob.fromJson(item as Map<String, dynamic>))
           .toList(),
@@ -120,6 +126,7 @@ class EspStatus {
     bool? relay1,
     bool? relay2,
     int? displayPage,
+    bool? activeLow,
     List<ScheduleJob>? jobs1,
     List<ScheduleJob>? jobs2,
   }) {
@@ -130,6 +137,7 @@ class EspStatus {
       relay1: relay1 ?? this.relay1,
       relay2: relay2 ?? this.relay2,
       displayPage: displayPage ?? this.displayPage,
+      activeLow: activeLow ?? this.activeLow,
       jobs1: jobs1 ?? this.jobs1,
       jobs2: jobs2 ?? this.jobs2,
     );

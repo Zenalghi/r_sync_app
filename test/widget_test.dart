@@ -59,6 +59,7 @@ void main() {
         'relay1': 'ON',
         'relay2': 'OFF',
         'displayPage': 1,
+        'activeLow': false,
         'jobs1': [
           {'h': 8, 'm': 0, 'a': 'ON', 'e': true},
           {'h': 18, 'm': 0, 'a': 'OFF', 'e': true},
@@ -79,6 +80,7 @@ void main() {
       expect(status.relay1, true);
       expect(status.relay2, false);
       expect(status.displayPage, 1);
+      expect(status.activeLow, false);
       expect(status.jobs1.length, 4);
       expect(status.jobs2.length, 4);
       expect(status.getRelayState(1), true);

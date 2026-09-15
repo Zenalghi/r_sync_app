@@ -1,3 +1,4 @@
+//lib\constants\app_colors.dart
 import 'package:flutter/material.dart';
 
 /// App color palette based on R-Sync brand identity (from assets/icons/ico.png):

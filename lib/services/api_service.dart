@@ -1,7 +1,11 @@
+//lib\services\api_service.dart
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
 import '../models/esp_status.dart';
 import '../models/schedule_job.dart';
 
@@ -40,9 +44,9 @@ class ApiService {
   /// On Web, use text/plain to avoid browser CORS preflight (OPTIONS) requirements.
   /// ESP32 parses raw JSON bytes directly regardless of Content-Type.
   Map<String, String> get _postHeaders => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, text/plain, */*',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json, text/plain, */*',
+  };
 
   /// Fetches system status, relays, and jobs from `GET /api/status`
   Future<EspStatus> getStatus(String ip) async {
@@ -50,10 +54,9 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/api/status');
 
     try {
-      final response = await _client.get(
-        uri,
-        headers: const {'Accept': 'application/json, */*'},
-      ).timeout(defaultTimeout);
+      final response = await _client
+          .get(uri, headers: const {'Accept': 'application/json, */*'})
+          .timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -82,18 +85,11 @@ class ApiService {
     final baseUrl = _formatBaseUrl(ip);
     final uri = Uri.parse('$baseUrl/api/relay');
 
-    final payload = {
-      'channel': channel,
-      'state': state ? 'ON' : 'OFF',
-    };
+    final payload = {'channel': channel, 'state': state ? 'ON' : 'OFF'};
 
     try {
       final response = await _client
-          .post(
-            uri,
-            headers: _postHeaders,
-            body: jsonEncode(payload),
-          )
+          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
           .timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
@@ -142,18 +138,11 @@ class ApiService {
       }
     }
 
-    final payload = {
-      'channel': channel,
-      'jobs': serializedJobs,
-    };
+    final payload = {'channel': channel, 'jobs': serializedJobs};
 
     try {
       final response = await _client
-          .post(
-            uri,
-            headers: _postHeaders,
-            body: jsonEncode(payload),
-          )
+          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
           .timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
@@ -193,11 +182,7 @@ class ApiService {
 
     try {
       final response = await _client
-          .post(
-            uri,
-            headers: _postHeaders,
-            body: jsonEncode(payload),
-          )
+          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
           .timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
@@ -235,6 +220,43 @@ class ApiService {
     } catch (e) {
       debugPrint('ApiService resetWifi error: $e');
       return false;
+    }
+  }
+
+  /// Sets relay active polarity (activeLow: true for Active LOW, false for Active HIGH)
+  /// ESP32 resets relays to OFF state when polarity changes.
+  Future<bool> setRelayPolarity(String ip, bool activeLow) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/relay/polarity');
+
+    final payload = {'activeLow': activeLow};
+
+    try {
+      final response = await _client
+          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
+          .timeout(defaultTimeout);
+
+      if (response.statusCode == 200) {
+        if (response.body.isEmpty) return true;
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map) {
+            return data['status'] == 'OK';
+          }
+          return true;
+        } catch (_) {
+          return true;
+        }
+      }
+      return false;
+    } on TimeoutException {
+      throw ApiException('Polarity change timed out');
+    } on http.ClientException catch (e) {
+      debugPrint('ApiService setRelayPolarity ClientException: $e');
+      throw ApiException('Cannot reach ESP32 ($ip): ${e.message}');
+    } catch (e) {
+      debugPrint('ApiService setRelayPolarity error: $e');
+      throw ApiException('Failed to set relay polarity: $e');
     }
   }
 
