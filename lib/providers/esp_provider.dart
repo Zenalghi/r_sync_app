@@ -72,11 +72,9 @@ class EspProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Discover capabilities
       final newCaps = await _apiService.getCapabilities(_espIp);
       _capabilities = newCaps;
 
-      // Fetch status
       final newStatus = await _apiService.getStatus(_espIp);
       _status = newStatus;
       _isConnected = true;
@@ -94,7 +92,6 @@ class EspProvider extends ChangeNotifier {
     final currentState = _status.getRelayState(channel);
     final targetState = !currentState;
 
-    // Optimistic UI update
     final updatedRelays = List<bool>.from(_status.relays);
     if (channel - 1 < updatedRelays.length) {
       updatedRelays[channel - 1] = targetState;
@@ -105,7 +102,6 @@ class EspProvider extends ChangeNotifier {
     try {
       final success = await _apiService.setRelay(_espIp, channel, targetState);
       if (!success) {
-        // Rollback
         updatedRelays[channel - 1] = currentState;
         _status = _status.copyWith(relays: updatedRelays);
         notifyListeners();
@@ -120,33 +116,24 @@ class EspProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> toggleSwitch(int switchIdx) async {
-    final currentState = _status.getSwitchState(switchIdx);
-    final targetState = !currentState;
-
-    // Optimistic UI update
+  Future<bool> triggerSwitchAction(int switchIdx, bool turnOn) async {
     final updatedSwitches = List<bool>.from(_status.switches);
     if (switchIdx < updatedSwitches.length) {
-      updatedSwitches[switchIdx] = targetState;
+      updatedSwitches[switchIdx] = turnOn;
     }
     _status = _status.copyWith(switches: updatedSwitches);
     notifyListeners();
 
     try {
-      final success = await _apiService.setSwitch(_espIp, switchIdx, targetState);
-      if (!success) {
-        updatedSwitches[switchIdx] = currentState;
-        _status = _status.copyWith(switches: updatedSwitches);
-        notifyListeners();
-        return false;
-      }
-      return true;
+      return await _apiService.setSwitch(_espIp, switchIdx, turnOn);
     } catch (e) {
-      updatedSwitches[switchIdx] = currentState;
-      _status = _status.copyWith(switches: updatedSwitches);
-      notifyListeners();
       return false;
     }
+  }
+
+  Future<bool> toggleSwitch(int switchIdx) async {
+    final currentState = _status.getSwitchState(switchIdx);
+    return triggerSwitchAction(switchIdx, !currentState);
   }
 
   Future<bool> triggerServoTest() async {

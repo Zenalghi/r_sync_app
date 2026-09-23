@@ -1,30 +1,30 @@
 // lib/widgets/wall_switch_card.dart
 
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 
 class WallSwitchCard extends StatelessWidget {
   final int switchIdx;
   final String title;
   final String subtitle;
-  final bool isOn;
   final bool isConnected;
-  final VoidCallback onToggle;
+  final VoidCallback onPressOn;
+  final VoidCallback onPressOff;
 
   const WallSwitchCard({
     super.key,
     required this.switchIdx,
     required this.title,
     required this.subtitle,
-    required this.isOn,
     required this.isConnected,
-    required this.onToggle,
+    required this.onPressOn,
+    required this.onPressOff,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inactiveColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -45,22 +45,22 @@ class WallSwitchCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (isOn ? AppColors.teal : inactiveColor)
-                  .withValues(alpha: 0.15),
+              color: AppColors.teal.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.power_settings_new_rounded,
-              color: isOn ? AppColors.teal : inactiveColor,
-              size: 26,
+            child: const Icon(
+              Icons.touch_app_rounded,
+              color: AppColors.teal,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
@@ -85,10 +85,52 @@ class WallSwitchCard extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
-            value: isOn,
-            onChanged: isConnected ? (_) => onToggle() : null,
-            activeThumbColor: AppColors.teal,
+          const SizedBox(width: 12),
+
+          // Two Explicit Action Buttons: ON and OFF (Di Ujung Kanan)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FilledButton.icon(
+                onPressed: isConnected ? onPressOn : null,
+                icon: const Icon(Icons.flash_on_rounded, size: 16),
+                label: const Text(
+                  'ON',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: isConnected ? onPressOff : null,
+                icon: const Icon(Icons.flash_off_rounded, size: 16),
+                label: const Text(
+                  'OFF',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

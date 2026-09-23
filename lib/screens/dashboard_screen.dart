@@ -372,9 +372,9 @@ class DashboardScreen extends StatelessWidget {
                     switchIdx: index,
                     title: 'Saklar Tembok $swName',
                     subtitle: '2 Servo (ON/OFF)',
-                    isOn: status.getSwitchState(index),
                     isConnected: isConnected,
-                    onToggle: () => espProvider.toggleSwitch(index),
+                    onPressOn: () => espProvider.triggerSwitchAction(index, true),
+                    onPressOff: () => espProvider.triggerSwitchAction(index, false),
                   );
                 },
               ),
