@@ -1,4 +1,4 @@
-//lib\screens\settings_screen.dart
+// lib/screens/settings_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -9,8 +9,8 @@ import '../providers/esp_provider.dart';
 import '../providers/theme_provider.dart';
 
 /// Settings screen for configuring ESP32 local IP address,
-/// Relay Active LOW/HIGH polarity, Light/Dark theme switching,
-/// background polling interval, and device diagnostics.
+/// Servo Calibration (Rest & Press Angles), Relay Active LOW/HIGH polarity,
+/// Light/Dark theme switching, background polling interval, and device diagnostics.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -25,11 +25,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _testMessage;
   String _appVersion = '1.0.0';
 
+  // Servo Calibration state
+  late int _restAngle;
+  late int _pressAngle;
+  late int _pressDurationMs;
+  bool _isSavingServoConfig = false;
+
   @override
   void initState() {
     super.initState();
-    final currentIp = context.read<EspProvider>().espIp;
-    _ipController = TextEditingController(text: currentIp);
+    final espProvider = context.read<EspProvider>();
+    _ipController = TextEditingController(text: espProvider.espIp);
+
+    _restAngle = espProvider.status.restAngle;
+    _pressAngle = espProvider.status.pressAngle;
+    _pressDurationMs = espProvider.status.pressDurationMs;
+
     _loadAppVersion();
   }
 
@@ -41,9 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _appVersion = info.version;
         });
       }
-    } catch (_) {
-      // Fallback stays as '1.0.0'
-    }
+    } catch (_) {}
   }
 
   @override
@@ -97,6 +106,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? 'Terhubung & IP Tersimpan! Respon ${stopwatch.elapsedMilliseconds} ms'
             : 'Gagal terhubung ke $ipToTest. Cek Wi-Fi & IP.';
       });
+    }
+  }
+
+  Future<void> _saveServoConfig() async {
+    setState(() => _isSavingServoConfig = true);
+    final espProvider = context.read<EspProvider>();
+    final success = await espProvider.setServoConfig(
+      restAngle: _restAngle,
+      pressAngle: _pressAngle,
+      pressDurationMs: _pressDurationMs,
+    );
+    setState(() => _isSavingServoConfig = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Kalibrasi Servo Berhasil Disimpan di ESP32!'
+                : 'Gagal menyimpan kalibrasi servo.',
+          ),
+          backgroundColor: success ? AppColors.teal : AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -211,6 +245,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final themeProvider = context.watch<ThemeProvider>();
     final espProvider = context.watch<EspProvider>();
+    final caps = espProvider.capabilities;
 
     return Scaffold(
       body: ListView(
@@ -390,7 +425,170 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 28),
 
-          // Section 2: Relay Hardware Polarity Control (Active LOW vs Active HIGH)
+          // Section: Servo Calibration (Rest & Press Angle)
+          if (caps.switchesCount > 0) ...[
+            _buildSectionHeader(
+              icon: Icons.tune_rounded,
+              title: 'Kalibrasi Sudut Servo Switch',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Rest Angle Slider
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Rest Angle (Posisi Netral / Mengambang):',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '$_restAngle°',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _restAngle.toDouble(),
+                    min: 0,
+                    max: 180,
+                    divisions: 180,
+                    activeColor: AppColors.teal,
+                    label: '$_restAngle°',
+                    onChanged: (val) => setState(() => _restAngle = val.round()),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Press Angle Slider
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Press Angle (Posisi Menekan Switch):',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '$_pressAngle°',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _pressAngle.toDouble(),
+                    min: 0,
+                    max: 180,
+                    divisions: 180,
+                    activeColor: AppColors.orange,
+                    label: '$_pressAngle°',
+                    onChanged: (val) => setState(() => _pressAngle = val.round()),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Press Duration Slider
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Durasi Tekanan (Hold Time):',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '${_pressDurationMs}ms',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.indigo,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _pressDurationMs.toDouble(),
+                    min: 100,
+                    max: 2000,
+                    divisions: 38,
+                    activeColor: AppColors.indigo,
+                    label: '${_pressDurationMs}ms',
+                    onChanged: (val) => setState(() => _pressDurationMs = val.round()),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: espProvider.isConnected
+                              ? () => espProvider.triggerServoTest()
+                              : null,
+                          icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                          label: const Text('Tes 3x Gerak'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.teal,
+                            side: const BorderSide(color: AppColors.teal),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: espProvider.isConnected && !_isSavingServoConfig
+                              ? _saveServoConfig
+                              : null,
+                          icon: _isSavingServoConfig
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.check_circle_rounded, size: 18),
+                          label: const Text('Simpan Sudut'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.teal,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+          ],
+
+          // Section 2: Relay Hardware Polarity Control
           _buildSectionHeader(
             icon: Icons.electric_bolt_rounded,
             title: 'Konfigurasi Polaritas Relay',
@@ -424,15 +622,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             : AppColors.lightTextMuted,
                       ),
                     ),
-                    if (espProvider.isChangingPolarity)
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.teal,
-                        ),
-                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -446,9 +635,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         icon: Icons.arrow_downward_rounded,
                         isActiveLowOption: true,
                         currentActiveLow: espProvider.status.activeLow,
-                        onTap:
-                            espProvider.isConnected &&
-                                !espProvider.isChangingPolarity
+                        onTap: espProvider.isConnected
                             ? () => _confirmChangePolarity(true)
                             : null,
                         isDark: isDark,
@@ -462,98 +649,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         icon: Icons.arrow_upward_rounded,
                         isActiveLowOption: false,
                         currentActiveLow: espProvider.status.activeLow,
-                        onTap:
-                            espProvider.isConnected &&
-                                !espProvider.isChangingPolarity
+                        onTap: espProvider.isConnected
                             ? () => _confirmChangePolarity(false)
-                            : null,
-                        isDark: isDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          // Section 3: Physical OLED Display Control
-          _buildSectionHeader(
-            icon: Icons.smart_display_rounded,
-            title: 'Layar OLED Perangkat',
-            isDark: isDark,
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'PILIHAN HALAMAN LAYAR FISIK',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted,
-                      ),
-                    ),
-                    if (espProvider.isSwitchingDisplay)
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.orange,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildOledPageOption(
-                        title: 'Halaman 1: Status',
-                        subtitle: 'WiFi, Jam, Relay',
-                        icon: Icons.info_outline_rounded,
-                        pageIndex: 0,
-                        currentPage: espProvider.status.displayPage,
-                        onTap:
-                            espProvider.isConnected &&
-                                !espProvider.isSwitchingDisplay
-                            ? () => espProvider.setDisplayPage(0)
-                            : null,
-                        isDark: isDark,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildOledPageOption(
-                        title: 'Halaman 2: Jadwal',
-                        subtitle: 'Daftar Scheduler',
-                        icon: Icons.calendar_month_rounded,
-                        pageIndex: 1,
-                        currentPage: espProvider.status.displayPage,
-                        onTap:
-                            espProvider.isConnected &&
-                                !espProvider.isSwitchingDisplay
-                            ? () => espProvider.setDisplayPage(1)
                             : null,
                         isDark: isDark,
                       ),
@@ -798,7 +895,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Smart Relay Automation & Control System',
+                        'Smart Relay & Servo Wall Switch Automation System',
                         style: TextStyle(
                           fontSize: 11,
                           color: AppColors.teal,
@@ -963,73 +1060,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOledPageOption({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required int pageIndex,
-    required int currentPage,
-    required VoidCallback? onTap,
-    required bool isDark,
-  }) {
-    final isSelected = currentPage == pageIndex;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.orange.withValues(alpha: 0.15)
-              : (isDark ? AppColors.darkSurface : Colors.grey.shade100),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.orange : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? AppColors.orange
-                  : (isDark
-                        ? AppColors.darkTextSecondary
-                        : Colors.grey.shade600),
-              size: 22,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? AppColors.orange
-                    : (isDark
-                          ? AppColors.darkTextSecondary
-                          : Colors.grey.shade700),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 10,
-                color: isDark
-                    ? AppColors.darkTextMuted
-                    : AppColors.lightTextMuted,
-              ),
-            ),
-          ],
         ),
       ),
     );

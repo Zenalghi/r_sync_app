@@ -1,3 +1,5 @@
+// lib/screens/main_screen.dart
+
 import 'dart:io' as io;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,11 +10,10 @@ import '../widgets/status_badge.dart';
 import 'dashboard_screen.dart';
 import 'scheduler_screen.dart';
 import 'settings_screen.dart';
+import 'timer_screen.dart';
 
 /// Navigation shell for R-Sync application hosting Dashboard,
-/// Smart Scheduler, and Settings tabs with adaptive navigation:
-/// - Desktop (Windows, macOS, Linux) & Web: Left NavigationRail
-/// - Mobile (Android, iOS): Bottom NavigationBar
+/// Countdown Timer, Smart Scheduler, and Settings tabs.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -44,15 +45,15 @@ class _MainScreenState extends State<MainScreen> {
 
     final screens = [
       DashboardScreen(
-        onNavigateToSettings: () => setState(() => _currentIndex = 2),
+        onNavigateToSettings: () => setState(() => _currentIndex = 3),
       ),
+      const TimerScreen(),
       const SchedulerScreen(),
       const SettingsScreen(),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Desktop & Web use Left NavigationRail; Mobile uses BottomNavigationBar
         final useNavRail = _isDesktopOrWeb && constraints.maxWidth >= 550;
 
         return Scaffold(
@@ -125,7 +126,6 @@ class _MainScreenState extends State<MainScreen> {
           ),
           body: Row(
             children: [
-              // Left Navigation Bar for Web, Windows, macOS, Linux
               if (useNavRail) ...[
                 NavigationRail(
                   extended: _isRailExtended,
@@ -193,6 +193,11 @@ class _MainScreenState extends State<MainScreen> {
                       label: Text('Dashboard'),
                     ),
                     NavigationRailDestination(
+                      icon: Icon(Icons.timer_outlined),
+                      selectedIcon: Icon(Icons.timer_rounded),
+                      label: Text('Timer'),
+                    ),
+                    NavigationRailDestination(
                       icon: Icon(Icons.alarm_outlined),
                       selectedIcon: Icon(Icons.alarm_rounded),
                       label: Text('Scheduler'),
@@ -210,8 +215,6 @@ class _MainScreenState extends State<MainScreen> {
                   color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
                 ),
               ],
-
-              // Main Screen Content
               Expanded(
                 child: IndexedStack(
                   index: _currentIndex,
@@ -234,6 +237,11 @@ class _MainScreenState extends State<MainScreen> {
                       icon: Icon(Icons.dashboard_outlined),
                       selectedIcon: Icon(Icons.dashboard_rounded),
                       label: 'Dashboard',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.timer_outlined),
+                      selectedIcon: Icon(Icons.timer_rounded),
+                      label: 'Timer',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.alarm_outlined),

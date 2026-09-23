@@ -1,22 +1,20 @@
-//lib\providers\esp_provider.dart
+// lib/providers/esp_provider.dart
 
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
+import '../models/esp_capabilities.dart';
 import '../models/esp_status.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
-/// Provider for managing ESP32 connection state, dynamic IP,
-/// background polling, and real-time relay control.
-/// Includes race-condition guards to prevent stale polling from reverting manual toggles.
 class EspProvider extends ChangeNotifier {
   final ApiService _apiService;
   final StorageService _storageService;
 
   late String _espIp;
   EspStatus _status = EspStatus.initial();
+  EspCapabilities _capabilities = EspCapabilities.initial();
   bool _isConnected = false;
   bool _isLoading = false;
   String? _errorMessage;
@@ -24,22 +22,15 @@ class EspProvider extends ChangeNotifier {
   late bool _autoRefresh;
   late int _pollInterval;
 
-  // Race condition guards for manual toggling
-  bool _isTogglingRelay1 = false;
-  bool _isTogglingRelay2 = false;
-  DateTime? _lastToggleTimeRelay1;
-  DateTime? _lastToggleTimeRelay2;
-
-  // Guard window: background polling will not overwrite a relay state
-  // if it was toggled within this duration (in milliseconds).
-  static const int _toggleProtectionWindowMs = 2500;
-
   EspProvider(this._apiService, this._storageService) {
     _espIp = _storageService.getEspIp();
     _autoRefresh = _storageService.getAutoRefresh();
     _pollInterval = _storageService.getPollInterval();
 
-    // Initial fetch & start timer if enabled
+    // Load cached capabilities from SharedPreferences on app startup
+    _loadCachedCapabilities();
+
+    // Initial fetch
     refreshStatus();
     if (_autoRefresh) {
       _startPolling();
@@ -48,13 +39,21 @@ class EspProvider extends ChangeNotifier {
 
   String get espIp => _espIp;
   EspStatus get status => _status;
+  EspCapabilities get capabilities => _capabilities;
   bool get isConnected => _isConnected;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get autoRefresh => _autoRefresh;
   int get pollInterval => _pollInterval;
 
-  /// Update ESP32 IP address and trigger status refresh
+  Future<void> _loadCachedCapabilities() async {
+    final cached = await EspCapabilities.loadFromLocal();
+    if (cached != null) {
+      _capabilities = cached;
+      notifyListeners();
+    }
+  }
+
   Future<void> setEspIp(String newIp) async {
     final cleanIp = newIp.trim();
     if (cleanIp.isEmpty || cleanIp == _espIp) return;
@@ -66,17 +65,20 @@ class EspProvider extends ChangeNotifier {
     await refreshStatus();
   }
 
-  /// Refreshes system status from ESP32 with toggle protection
   Future<void> refreshStatus() async {
     if (_isLoading) return;
-
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
+      // Discover capabilities
+      final newCaps = await _apiService.getCapabilities(_espIp);
+      _capabilities = newCaps;
+
+      // Fetch status
       final newStatus = await _apiService.getStatus(_espIp);
-      _status = _mergeStatusSafely(newStatus);
+      _status = newStatus;
       _isConnected = true;
       _errorMessage = null;
     } catch (e) {
@@ -88,95 +90,128 @@ class EspProvider extends ChangeNotifier {
     }
   }
 
-  /// Optimistic toggle of relay state (channel 1 or 2) with race-condition prevention
   Future<bool> toggleRelay(int channel) async {
-    // Prevent double-tapping while the same channel is in-flight
-    if (channel == 1 && _isTogglingRelay1) return false;
-    if (channel == 2 && _isTogglingRelay2) return false;
+    final currentState = _status.getRelayState(channel);
+    final targetState = !currentState;
 
-    final currentRelayState = channel == 1 ? _status.relay1 : _status.relay2;
-    final targetState = !currentRelayState;
-
-    // 1. Mark toggling active and record timestamp
-    if (channel == 1) {
-      _isTogglingRelay1 = true;
-      _lastToggleTimeRelay1 = DateTime.now();
-    } else {
-      _isTogglingRelay2 = true;
-      _lastToggleTimeRelay2 = DateTime.now();
+    // Optimistic UI update
+    final updatedRelays = List<bool>.from(_status.relays);
+    if (channel - 1 < updatedRelays.length) {
+      updatedRelays[channel - 1] = targetState;
     }
-
-    // 2. Optimistic UI update immediately
-    if (channel == 1) {
-      _status = _status.copyWith(relay1: targetState);
-    } else {
-      _status = _status.copyWith(relay2: targetState);
-    }
+    _status = _status.copyWith(relays: updatedRelays);
     notifyListeners();
 
-    // 3. Reset background polling countdown so it won't fire during user interaction
-    if (_autoRefresh) {
-      _startPolling();
-    }
-
-    // 4. Call ESP32 API
     try {
       final success = await _apiService.setRelay(_espIp, channel, targetState);
       if (!success) {
-        // Rollback on server rejection
-        _rollbackRelay(channel, currentRelayState);
+        // Rollback
+        updatedRelays[channel - 1] = currentState;
+        _status = _status.copyWith(relays: updatedRelays);
+        notifyListeners();
         return false;
-      }
-
-      // Update timestamp to extend protection window after network round-trip
-      if (channel == 1) {
-        _lastToggleTimeRelay1 = DateTime.now();
-      } else {
-        _lastToggleTimeRelay2 = DateTime.now();
       }
       return true;
     } catch (e) {
-      // Rollback on network exception
-      _rollbackRelay(channel, currentRelayState);
-      _errorMessage = 'Gagal mengubah status Relay $channel: $e';
+      updatedRelays[channel - 1] = currentState;
+      _status = _status.copyWith(relays: updatedRelays);
       notifyListeners();
       return false;
-    } finally {
-      if (channel == 1) {
-        _isTogglingRelay1 = false;
-      } else {
-        _isTogglingRelay2 = false;
-      }
     }
   }
 
-  void _rollbackRelay(int channel, bool previousState) {
-    if (channel == 1) {
-      _status = _status.copyWith(relay1: previousState);
-    } else {
-      _status = _status.copyWith(relay2: previousState);
+  Future<bool> toggleSwitch(int switchIdx) async {
+    final currentState = _status.getSwitchState(switchIdx);
+    final targetState = !currentState;
+
+    // Optimistic UI update
+    final updatedSwitches = List<bool>.from(_status.switches);
+    if (switchIdx < updatedSwitches.length) {
+      updatedSwitches[switchIdx] = targetState;
     }
+    _status = _status.copyWith(switches: updatedSwitches);
     notifyListeners();
+
+    try {
+      final success = await _apiService.setSwitch(_espIp, switchIdx, targetState);
+      if (!success) {
+        updatedSwitches[switchIdx] = currentState;
+        _status = _status.copyWith(switches: updatedSwitches);
+        notifyListeners();
+        return false;
+      }
+      return true;
+    } catch (e) {
+      updatedSwitches[switchIdx] = currentState;
+      _status = _status.copyWith(switches: updatedSwitches);
+      notifyListeners();
+      return false;
+    }
   }
 
-  /// Sets state directly
-  Future<bool> setRelayState(int channel, bool state) async {
-    final currentRelayState = channel == 1 ? _status.relay1 : _status.relay2;
-    if (currentRelayState == state) return true;
-    return toggleRelay(channel);
+  Future<bool> triggerServoTest() async {
+    return _apiService.triggerServoTest(_espIp);
   }
 
-  /// Tests connectivity to a given IP
+  Future<bool> setServoConfig({
+    required int restAngle,
+    required int pressAngle,
+    required int pressDurationMs,
+  }) async {
+    final success = await _apiService.setServoConfig(
+      _espIp,
+      restAngle: restAngle,
+      pressAngle: pressAngle,
+      pressDurationMs: pressDurationMs,
+    );
+    if (success) {
+      _status = _status.copyWith(
+        restAngle: restAngle,
+        pressAngle: pressAngle,
+        pressDurationMs: pressDurationMs,
+      );
+      notifyListeners();
+    }
+    return success;
+  }
+
+  Future<bool> addTimer({
+    required int durationSec,
+    required bool invertOnStartEnd,
+    required String targetAction,
+    required List<bool> targetRelays,
+    required List<bool> targetSwitches,
+  }) async {
+    final success = await _apiService.addTimer(
+      _espIp,
+      durationSec: durationSec,
+      invertOnStartEnd: invertOnStartEnd,
+      targetAction: targetAction,
+      targetRelays: targetRelays,
+      targetSwitches: targetSwitches,
+    );
+    if (success) {
+      await _silentRefresh();
+    }
+    return success;
+  }
+
+  Future<bool> controlTimer(int timerId, String command) async {
+    final success = await _apiService.controlTimer(_espIp, timerId, command);
+    if (success) {
+      await _silentRefresh();
+    }
+    return success;
+  }
+
   Future<bool> testConnection(String ipToTest) async {
     return _apiService.testConnection(ipToTest);
   }
 
-  /// Remotely requests ESP32 to clear Wi-Fi and open portal
   Future<bool> resetWifi() async {
     return _apiService.resetWifi(_espIp);
   }
 
-  /// Configures auto-refresh polling
   Future<void> setAutoRefresh(bool enabled) async {
     if (_autoRefresh == enabled) return;
     _autoRefresh = enabled;
@@ -190,7 +225,6 @@ class EspProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Configures polling interval in seconds
   Future<void> setPollInterval(int seconds) async {
     if (seconds < 1 || _pollInterval == seconds) return;
     _pollInterval = seconds;
@@ -215,11 +249,10 @@ class EspProvider extends ChangeNotifier {
     _pollTimer = null;
   }
 
-  /// Background polling without setting _isLoading (avoids UI flashing)
   Future<void> _silentRefresh() async {
     try {
       final newStatus = await _apiService.getStatus(_espIp);
-      _status = _mergeStatusSafely(newStatus);
+      _status = newStatus;
       _isConnected = true;
       _errorMessage = null;
       notifyListeners();
@@ -231,117 +264,23 @@ class EspProvider extends ChangeNotifier {
     }
   }
 
-  bool _isSwitchingDisplay = false;
-  bool get isSwitchingDisplay => _isSwitchingDisplay;
-
-  /// Toggles OLED display between Page 0 (Status) and Page 1 (Scheduler)
-  Future<bool> toggleDisplayPage() async {
-    final nextPage = (_status.displayPage + 1) % 2;
-    return setDisplayPage(nextPage);
-  }
-
-  /// Sets specific OLED display page (0 = Status & Time, 1 = Scheduler)
   Future<bool> setDisplayPage(int page) async {
-    if (_isSwitchingDisplay) return false;
-    _isSwitchingDisplay = true;
-
-    final previousPage = _status.displayPage;
-    // Optimistic UI update
-    _status = _status.copyWith(displayPage: page);
-    notifyListeners();
-
-    try {
-      final updatedPage = await _apiService.setDisplayPage(_espIp, page);
-      if (updatedPage == null) {
-        _status = _status.copyWith(displayPage: previousPage);
-        notifyListeners();
-        return false;
-      }
+    final updatedPage = await _apiService.setDisplayPage(_espIp, page);
+    if (updatedPage != null) {
       _status = _status.copyWith(displayPage: updatedPage);
       notifyListeners();
       return true;
-    } catch (e) {
-      debugPrint('Error changing OLED display page: $e');
-      _status = _status.copyWith(displayPage: previousPage);
-      notifyListeners();
-      return false;
-    } finally {
-      _isSwitchingDisplay = false;
-      notifyListeners();
     }
+    return false;
   }
 
-  /// Merges new ESP32 status while protecting recently manually toggled relay states
-  /// from being overwritten by delayed/stale in-flight polling responses.
-  EspStatus _mergeStatusSafely(EspStatus incoming) {
-    final now = DateTime.now();
-
-    final preserveRelay1 =
-        _isTogglingRelay1 ||
-        (_lastToggleTimeRelay1 != null &&
-            now.difference(_lastToggleTimeRelay1!).inMilliseconds <
-                _toggleProtectionWindowMs);
-
-    final preserveRelay2 =
-        _isTogglingRelay2 ||
-        (_lastToggleTimeRelay2 != null &&
-            now.difference(_lastToggleTimeRelay2!).inMilliseconds <
-                _toggleProtectionWindowMs);
-
-    final preserveDisplay = _isSwitchingDisplay;
-
-    final preservePolarity =
-        _isChangingPolarity ||
-        (_lastChangePolarityTime != null &&
-            now.difference(_lastChangePolarityTime!).inMilliseconds <
-                _toggleProtectionWindowMs);
-
-    return incoming.copyWith(
-      relay1: preserveRelay1 ? _status.relay1 : incoming.relay1,
-      relay2: preserveRelay2 ? _status.relay2 : incoming.relay2,
-      displayPage: preserveDisplay ? _status.displayPage : incoming.displayPage,
-      activeLow: preservePolarity ? _status.activeLow : incoming.activeLow,
-    );
-  }
-
-  bool _isChangingPolarity = false;
-  bool get isChangingPolarity => _isChangingPolarity;
-  DateTime? _lastChangePolarityTime;
-
-  /// Updates relay active logic polarity (Active LOW vs Active HIGH)
   Future<bool> setRelayPolarity(bool activeLow) async {
-    if (_isChangingPolarity) return false;
-    _isChangingPolarity = true;
-    _lastChangePolarityTime = DateTime.now(); // Record start time
-
-    final previousActiveLow = _status.activeLow;
-    _status = _status.copyWith(
-      activeLow: activeLow,
-      relay1: false,
-      relay2: false,
-    );
-    notifyListeners();
-
-    try {
-      final success = await _apiService.setRelayPolarity(_espIp, activeLow);
-      if (!success) {
-        _status = _status.copyWith(activeLow: previousActiveLow);
-        notifyListeners();
-        return false;
-      }
-      _lastChangePolarityTime = DateTime.now(); // Extend protection window
-      await refreshStatus();
-      return true;
-    } catch (e) {
-      debugPrint('Error changing relay polarity: $e');
-      _status = _status.copyWith(activeLow: previousActiveLow);
-      _errorMessage = 'Gagal mengubah polaritas relay: $e';
-      notifyListeners();
-      return false;
-    } finally {
-      _isChangingPolarity = false;
+    final success = await _apiService.setRelayPolarity(_espIp, activeLow);
+    if (success) {
+      _status = _status.copyWith(activeLow: activeLow);
       notifyListeners();
     }
+    return success;
   }
 
   @override

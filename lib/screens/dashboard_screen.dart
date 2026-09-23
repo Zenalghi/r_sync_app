@@ -1,10 +1,13 @@
+// lib/screens/dashboard_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/esp_provider.dart';
 import '../widgets/relay_card.dart';
+import '../widgets/wall_switch_card.dart';
 
-/// Main Dashboard screen with real-time relay controls,
+/// Main Dashboard screen with real-time relay and wall switch controls,
 /// quick master actions, and connection status overview.
 class DashboardScreen extends StatelessWidget {
   final VoidCallback onNavigateToSettings;
@@ -19,6 +22,7 @@ class DashboardScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final espProvider = context.watch<EspProvider>();
     final status = espProvider.status;
+    final caps = espProvider.capabilities;
     final isConnected = espProvider.isConnected;
 
     return Scaffold(
@@ -121,7 +125,7 @@ class DashboardScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'STATUS PERANGKAT ESP32',
+                            caps.deviceName.toUpperCase(),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -227,9 +231,7 @@ class DashboardScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              status.displayPage == 0
-                                  ? 'Halaman 1: Status & Waktu'
-                                  : 'Halaman 2: Jadwal Scheduler',
+                              'Halaman OLED #${status.displayPage + 1}',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -243,22 +245,13 @@ class DashboardScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       FilledButton.tonalIcon(
-                        onPressed: isConnected && !espProvider.isSwitchingDisplay
-                            ? () => espProvider.toggleDisplayPage()
+                        onPressed: isConnected
+                            ? () => espProvider.setDisplayPage((status.displayPage + 1) % 4)
                             : null,
-                        icon: espProvider.isSwitchingDisplay
-                            ? const SizedBox(
-                                width: 12,
-                                height: 12,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.orange,
-                                ),
-                              )
-                            : const Icon(Icons.swap_horiz_rounded, size: 16),
-                        label: Text(
-                          status.displayPage == 0 ? 'Ke Jadwal' : 'Ke Status',
-                          style: const TextStyle(
+                        icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                        label: const Text(
+                          'Ganti Hal',
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -287,59 +280,106 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Section: Relay Channels
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Kontrol Saklar Relay',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary,
+            if (caps.relaysCount > 0) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Kontrol Saklar Relay',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                    ),
                   ),
-                ),
-                Text(
-                  '2 Channel Aktif',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isDark
-                        ? AppColors.darkTextMuted
-                        : AppColors.lightTextMuted,
+                  Text(
+                    '${caps.relaysCount} Channel Relay',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+              const SizedBox(height: 14),
 
-            const SizedBox(height: 14),
+              // Dynamic Relay Cards
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: caps.relaysCount,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final ch = index + 1;
+                  return RelayCard(
+                    channel: ch,
+                    title: 'Relay $ch',
+                    subtitle: 'Beban relay channel $ch',
+                    isOn: status.getRelayState(ch),
+                    isConnected: isConnected,
+                    nextJob: status.getNextActiveJob(ch),
+                    onToggle: () => espProvider.toggleRelay(ch),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+            ],
 
-            // Relay 1 Card
-            RelayCard(
-              channel: 1,
-              title: 'Relay 1 (Channel A)',
-              subtitle: 'Kendali beban utama',
-              isOn: status.relay1,
-              isConnected: isConnected,
-              nextJob: status.getNextActiveJob(1),
-              onToggle: () => espProvider.toggleRelay(1),
-            ),
+            // Section: Wall Switches (Servos)
+            if (caps.switchesCount > 0) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Saklar Tembok (Servo)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: isConnected ? () => espProvider.triggerServoTest() : null,
+                    icon: const Icon(Icons.build_rounded, size: 14),
+                    label: const Text('Tes 3x Servo', style: TextStyle(fontSize: 11)),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
 
-            const SizedBox(height: 16),
-
-            // Relay 2 Card
-            RelayCard(
-              channel: 2,
-              title: 'Relay 2 (Channel B)',
-              subtitle: 'Kendali beban sekunder',
-              isOn: status.relay2,
-              isConnected: isConnected,
-              nextJob: status.getNextActiveJob(2),
-              onToggle: () => espProvider.toggleRelay(2),
-            ),
-
-            const SizedBox(height: 24),
+              // Dynamic Switch Cards
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: caps.switchesCount,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final names = ['A', 'B', 'C'];
+                  final swName = index < names.length ? names[index] : '${index + 1}';
+                  return WallSwitchCard(
+                    switchIdx: index,
+                    title: 'Saklar Tembok $swName',
+                    subtitle: '2 Servo (ON/OFF)',
+                    isOn: status.getSwitchState(index),
+                    isConnected: isConnected,
+                    onToggle: () => espProvider.toggleSwitch(index),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // Master Quick Controls
             Text(
@@ -352,7 +392,6 @@ class DashboardScreen extends StatelessWidget {
                     : AppColors.lightTextPrimary,
               ),
             ),
-
             const SizedBox(height: 10),
 
             Row(
@@ -361,8 +400,9 @@ class DashboardScreen extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: isConnected
                         ? () async {
-                            await espProvider.setRelayState(1, true);
-                            await espProvider.setRelayState(2, true);
+                            for (int r = 1; r <= caps.relaysCount; r++) {
+                              await espProvider.toggleRelay(r);
+                            }
                           }
                         : null,
                     icon: const Icon(Icons.flash_on_rounded,
@@ -384,8 +424,11 @@ class DashboardScreen extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: isConnected
                         ? () async {
-                            await espProvider.setRelayState(1, false);
-                            await espProvider.setRelayState(2, false);
+                            for (int r = 1; r <= caps.relaysCount; r++) {
+                              if (status.getRelayState(r)) {
+                                await espProvider.toggleRelay(r);
+                              }
+                            }
                           }
                         : null,
                     icon: const Icon(Icons.flash_off_rounded,

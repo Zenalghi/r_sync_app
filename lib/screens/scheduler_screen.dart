@@ -1,3 +1,5 @@
+// lib/screens/scheduler_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
@@ -7,9 +9,7 @@ import '../providers/schedule_provider.dart';
 import '../widgets/schedule_card.dart';
 import '../widgets/smart_job_dialog.dart';
 
-/// Smart Scheduler screen for configuring automated timers for Relay 1 and Relay 2.
-/// Dynamically shows only configured schedules (no blank cards), alternates smart recommendations,
-/// and limits to 4 jobs per relay according to ESP32 hardware capability.
+/// Smart Scheduler screen for configuring automated timers for Relays (1..4) and Servo Switches (A..C).
 class SchedulerScreen extends StatefulWidget {
   const SchedulerScreen({super.key});
 
@@ -18,17 +18,31 @@ class SchedulerScreen extends StatefulWidget {
 }
 
 class _SchedulerScreenState extends State<SchedulerScreen> {
-  int _selectedChannel = 1; // 1 or 2
+  int _selectedChannelIndex = 0; // 0..3 for Relays 1..4, 4..6 for Switches A..C
+
+  String _getChannelName(int index) {
+    if (index < 4) {
+      return 'Relay ${index + 1}';
+    } else {
+      final names = ['A', 'B', 'C'];
+      final idx = index - 4;
+      final name = idx < names.length ? names[idx] : '${idx + 1}';
+      return 'Saklar $name';
+    }
+  }
 
   void _openAddJobModal() {
     final scheduleProvider = context.read<ScheduleProvider>();
     final espProvider = context.read<EspProvider>();
 
-    if (!scheduleProvider.canAddJob(_selectedChannel)) {
+    // Map _selectedChannelIndex + 1 for legacy ScheduleProvider channel indexing (1-based for relays, 5-based for switches)
+    final ch = _selectedChannelIndex + 1;
+
+    if (!scheduleProvider.canAddJob(ch)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Maksimal 4 jadwal per relay sudah tercapai!',
+        const SnackBar(
+          content: Text(
+            'Maksimal 4 jadwal per channel sudah tercapai!',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           backgroundColor: AppColors.warning,
@@ -38,20 +52,18 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
       return;
     }
 
-    final recommendedAction =
-        scheduleProvider.getNextRecommendedAction(_selectedChannel);
-    final recommendedTime =
-        scheduleProvider.getNextRecommendedTime(_selectedChannel);
+    final recommendedAction = scheduleProvider.getNextRecommendedAction(ch);
+    final recommendedTime = scheduleProvider.getNextRecommendedTime(ch);
 
     SmartJobDialog.show(
       context: context,
-      channel: _selectedChannel,
+      channel: ch,
       recommendedAction: recommendedAction,
       recommendedTime: recommendedTime,
       onSave: (newJob) async {
         final success = await scheduleProvider.addJob(
           espIp: espProvider.espIp,
-          channel: _selectedChannel,
+          channel: _selectedChannelIndex, // ESP32 uses 0-based channel index
           newJob: newJob,
         );
 
@@ -86,17 +98,18 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
   void _openEditJobModal(int index, ScheduleJob job) {
     final scheduleProvider = context.read<ScheduleProvider>();
     final espProvider = context.read<EspProvider>();
+    final ch = _selectedChannelIndex + 1;
 
     SmartJobDialog.show(
       context: context,
-      channel: _selectedChannel,
+      channel: ch,
       existingJob: job,
       recommendedAction: job.action,
       recommendedTime: TimeOfDay(hour: job.hour, minute: job.minute),
       onSave: (updatedJob) async {
         final success = await scheduleProvider.updateJob(
           espIp: espProvider.espIp,
-          channel: _selectedChannel,
+          channel: _selectedChannelIndex,
           index: index,
           updatedJob: updatedJob,
         );
@@ -141,7 +154,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text('Hapus Jadwal?'),
         content: Text(
-          'Apakah Anda yakin ingin menghapus jadwal pukul ${job.timeString} (${job.action}) dari Relay $_selectedChannel?',
+          'Apakah Anda yakin ingin menghapus jadwal pukul ${job.timeString} (${job.action}) dari ${_getChannelName(_selectedChannelIndex)}?',
         ),
         actions: [
           TextButton(
@@ -153,7 +166,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
               Navigator.pop(ctx);
               final success = await scheduleProvider.deleteJob(
                 espIp: espProvider.espIp,
-                channel: _selectedChannel,
+                channel: _selectedChannelIndex,
                 index: index,
               );
               if (mounted) {
@@ -195,18 +208,21 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheduleProvider = context.watch<ScheduleProvider>();
     final espProvider = context.watch<EspProvider>();
+    final caps = espProvider.capabilities;
 
-    final currentJobs = scheduleProvider.getJobs(_selectedChannel);
-    final canAdd = scheduleProvider.canAddJob(_selectedChannel);
-    final primaryColor =
-        _selectedChannel == 1 ? AppColors.teal : AppColors.orange;
+    final totalChannels = caps.relaysCount + caps.switchesCount;
+    final ch = _selectedChannelIndex + 1;
+    final currentJobs = scheduleProvider.getJobs(ch);
+    final canAdd = scheduleProvider.canAddJob(ch);
+    final primaryColor = AppColors.teal;
 
     return Scaffold(
       body: Column(
         children: [
-          // Channel Selector Tabs
+          // Channel Selector Tabs Scrollable
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            height: 54,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: isDark ? AppColors.darkSurface : Colors.white,
               border: Border(
@@ -215,36 +231,64 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                 ),
               ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildChannelTab(
-                    channel: 1,
-                    title: 'Relay 1 (Teal)',
-                    color: AppColors.teal,
-                    count: scheduleProvider.getJobs(1).length,
-                    isSelected: _selectedChannel == 1,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: totalChannels,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final isSelected = _selectedChannelIndex == index;
+                final channelName = _getChannelName(index);
+                final jobCount = scheduleProvider.getJobs(index + 1).length;
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => setState(() => _selectedChannelIndex = index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.teal.withValues(alpha: 0.15)
+                          : (isDark ? AppColors.darkCard : Colors.grey.shade100),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? AppColors.teal : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          channelName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? AppColors.teal : (isDark ? Colors.white70 : Colors.black87),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.teal : Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$jobCount',
+                            style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildChannelTab(
-                    channel: 2,
-                    title: 'Relay 2 (Orange)',
-                    color: AppColors.orange,
-                    count: scheduleProvider.getJobs(2).length,
-                    isSelected: _selectedChannel == 2,
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
 
-          // Saving overlay banner
           if (scheduleProvider.isSaving)
-            LinearProgressIndicator(
-              backgroundColor: primaryColor.withValues(alpha: 0.2),
-              color: primaryColor,
+            const LinearProgressIndicator(
+              backgroundColor: AppColors.tealLight,
+              color: AppColors.teal,
               minHeight: 3,
             ),
 
@@ -256,14 +300,14 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.schedule_send_rounded,
                       size: 16,
-                      color: primaryColor,
+                      color: AppColors.teal,
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Jadwal Otomatis Relay $_selectedChannel',
+                      'Jadwal Otomatis ${_getChannelName(_selectedChannelIndex)}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -275,8 +319,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                   ],
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: currentJobs.length >= 4
                         ? AppColors.warning.withValues(alpha: 0.15)
@@ -310,11 +353,11 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                       return ScheduleCard(
                         job: job,
                         index: index,
-                        channel: _selectedChannel,
+                        channel: ch,
                         onToggleEnabled: (val) {
                           scheduleProvider.toggleJobEnabled(
                             espIp: espProvider.espIp,
-                            channel: _selectedChannel,
+                            channel: _selectedChannelIndex,
                             index: index,
                           );
                         },
@@ -327,7 +370,6 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
         ],
       ),
 
-      // Floating Add Schedule Button
       floatingActionButton: FloatingActionButton.extended(
         onPressed: canAdd ? _openAddJobModal : null,
         backgroundColor: canAdd
@@ -339,77 +381,6 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
         label: Text(
           canAdd ? 'Tambah Jadwal' : 'Slot Penuh (4/4)',
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChannelTab({
-    required int channel,
-    required String title,
-    required Color color,
-    required int count,
-    required bool isSelected,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => setState(() => _selectedChannel = channel),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? color.withValues(alpha: 0.15)
-              : (isDark ? AppColors.darkCard : Colors.grey.shade100),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? color : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Relay $channel',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? color
-                    : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: isSelected ? color : Colors.grey.shade400,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -448,7 +419,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Buat timer otomatis untuk Relay $_selectedChannel. Sistem akan menyarankan aksi ON/OFF secara otomatis.',
+              'Buat timer otomatis untuk ${_getChannelName(_selectedChannelIndex)}. Sistem akan menyarankan aksi ON/OFF secara otomatis.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -465,8 +436,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
             ),
           ],
