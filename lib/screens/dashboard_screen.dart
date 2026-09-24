@@ -348,7 +348,7 @@ class DashboardScreen extends StatelessWidget {
                   FilledButton.tonalIcon(
                     onPressed: isConnected ? () => espProvider.triggerServoTest() : null,
                     icon: const Icon(Icons.build_rounded, size: 14),
-                    label: const Text('Tes 3x Servo', style: TextStyle(fontSize: 11)),
+                    label: const Text('Tes Servo', style: TextStyle(fontSize: 11)),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       minimumSize: Size.zero,

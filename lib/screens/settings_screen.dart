@@ -452,7 +452,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const Text(
                         'Rest Angle (Posisi Netral / Mengambang):',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         '$_restAngle°',
@@ -471,7 +474,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     divisions: 180,
                     activeColor: AppColors.teal,
                     label: '$_restAngle°',
-                    onChanged: (val) => setState(() => _restAngle = val.round()),
+                    onChanged: (val) =>
+                        setState(() => _restAngle = val.round()),
                   ),
 
                   const SizedBox(height: 10),
@@ -482,7 +486,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const Text(
                         'Press Angle (Posisi Menekan Switch):',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         '$_pressAngle°',
@@ -501,7 +508,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     divisions: 180,
                     activeColor: AppColors.orange,
                     label: '$_pressAngle°',
-                    onChanged: (val) => setState(() => _pressAngle = val.round()),
+                    onChanged: (val) =>
+                        setState(() => _pressAngle = val.round()),
                   ),
 
                   const SizedBox(height: 10),
@@ -512,7 +520,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const Text(
                         'Durasi Tekanan (Hold Time):',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         '${_pressDurationMs}ms',
@@ -531,7 +542,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     divisions: 38,
                     activeColor: AppColors.indigo,
                     label: '${_pressDurationMs}ms',
-                    onChanged: (val) => setState(() => _pressDurationMs = val.round()),
+                    onChanged: (val) =>
+                        setState(() => _pressDurationMs = val.round()),
                   ),
 
                   const SizedBox(height: 14),
@@ -544,7 +556,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ? () => espProvider.triggerServoTest()
                               : null,
                           icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                          label: const Text('Tes 3x Gerak'),
+                          label: const Text('Tes Servo'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.teal,
                             side: const BorderSide(color: AppColors.teal),
@@ -557,7 +569,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: espProvider.isConnected && !_isSavingServoConfig
+                          onPressed:
+                              espProvider.isConnected && !_isSavingServoConfig
                               ? _saveServoConfig
                               : null,
                           icon: _isSavingServoConfig
@@ -569,8 +582,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Icon(Icons.check_circle_rounded, size: 18),
-                          label: const Text('Simpan Sudut'),
+                              : const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 18,
+                                ),
+                          label: const Text('Simpan'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.teal,
                             foregroundColor: Colors.white,
