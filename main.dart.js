@@ -100767,9 +100767,9 @@ j=c?new A.a5J(f,e):h
 a.push(A.bZ(h,A.bU(A.b([o,B.fd,l,B.fd,n,B.bB,A.b1(A.b([m,B.d2,k,B.bA,A.aKR(B.Lt,B.a1h,j,A.a8N(B.av.c8(0.12),B.av,B.I,B.fX,new A.bP(A.b2(10),B.q),h,B.jp))],b),B.n,B.l,B.o,0,h)],b),B.ah,B.l,B.o,0,B.H),B.r,h,new A.bq(s,h,q,r,p,h,B.M),h,h,h,B.eA,h,h,h))
 a.push(B.hG)
 s=d.c
-if(s>0){r=A.ar("Kontrol Saklar Relay",h,h,h,A.b0(h,h,g?B.aO:B.aM,h,h,h,h,h,h,h,h,16,h,h,B.O,h,h,!0,h,h,h,h,h,h,h,h),h,h,h)
+if(s>0){r=A.ar("Kontrol Relay",h,h,h,A.b0(h,h,g?B.aO:B.aM,h,h,h,h,h,h,h,h,16,h,h,B.O,h,h,!0,h,h,h,h,h,h,h,h),h,h,h)
 B.b.Y(a,A.b([A.b1(A.b([r,A.ar(""+s+" Channel Relay",h,h,h,A.b0(h,h,g?B.ad:B.a_,h,h,h,h,h,h,h,h,12,h,h,B.X,h,h,!0,h,h,h,h,h,h,h,h),h,h,h)],b),B.n,B.b0,B.o,0,h),B.fd,A.aGm(new A.a5K(e,c,f),s,B.xB,B.aj,new A.a5L(),!0),B.hG],b))}s=d.d
-if(s>0){r=A.ar("Saklar Tembok (Servo)",h,h,h,A.b0(h,h,g?B.aO:B.aM,h,h,h,h,h,h,h,h,16,h,h,B.O,h,h,!0,h,h,h,h,h,h,h,h),h,h,h)
+if(s>0){r=A.ar("Switch (Servo)",h,h,h,A.b0(h,h,g?B.aO:B.aM,h,h,h,h,h,h,h,h,16,h,h,B.O,h,h,!0,h,h,h,h,h,h,h,h),h,h,h)
 q=c?new A.a5M(f):h
 B.b.Y(a,A.b([A.b1(A.b([r,A.aKR(B.L9,B.a0Y,q,A.a8N(h,h,B.I,B.pY,h,h,B.jp))],b),B.n,B.b0,B.o,0,h),B.fd,A.aGm(new A.a5N(c,f),s,B.xB,B.aj,new A.a5O(),!0),B.hG],b))}a.push(A.ar("Aksi Cepat Sekaligus",h,h,h,A.b0(h,h,g?B.aO:B.aM,h,h,h,h,h,h,h,h,14,h,h,B.O,h,h,!0,h,h,h,h,h,h,h,h),h,h,h))
 a.push(B.nD)
@@ -100807,7 +100807,7 @@ $2(a,b){return B.bB},
 $S:134}
 A.a5N.prototype={
 $2(a,b){var s=b<3?["A","B","C"][b]:""+(b+1),r=this.b
-return new A.x4("Saklar Tembok "+s,"2 Servo (ON/OFF)",this.a,new A.a5G(r,b),new A.a5H(r,b),null)},
+return new A.x4("Switch "+s,"2 Servo (ON/OFF)",this.a,new A.a5G(r,b),new A.a5H(r,b),null)},
 $S:601}
 A.a5G.prototype={
 $0(){return this.a.yG(this.b,!0)},
@@ -100923,7 +100923,7 @@ A.IH.prototype={
 Ad(a){var s
 if(a<4)return"Relay "+(a+1)
 else{s=a-4
-return"Saklar "+(s<3?["A","B","C"][s]:""+(s+1))}},
+return"Switch "+(s<3?["A","B","C"][s]:""+(s+1))}},
 amA(){var s,r,q,p,o,n=this,m=n.c
 m.toString
 s=A.dN(m,!1,t.AI)
@@ -101567,7 +101567,7 @@ return s},
 $S:0}
 A.aCc.prototype={
 $1(a){var s=null,r=this.a
-return A.aKT(A.ar("Saklar "+(a<3?["A","B","C"][a]:""+(a+1)),s,s,s,s,s,s,s),new A.aC1(this.b,a,r),r[a])},
+return A.aKT(A.ar("Switch "+(a<3?["A","B","C"][a]:""+(a+1)),s,s,s,s,s,s,s),new A.aC1(this.b,a,r),r[a])},
 $S:613}
 A.aC1.prototype={
 $1(a){this.a.$1(new A.aC_(this.b,a,this.c))},
