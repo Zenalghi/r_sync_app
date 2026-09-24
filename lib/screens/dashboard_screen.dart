@@ -285,7 +285,7 @@ class DashboardScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Kontrol Saklar Relay',
+                    'Kontrol Relay',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -336,7 +336,7 @@ class DashboardScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Saklar Tembok (Servo)',
+                    'Switch (Servo)',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -370,7 +370,7 @@ class DashboardScreen extends StatelessWidget {
                   final swName = index < names.length ? names[index] : '${index + 1}';
                   return WallSwitchCard(
                     switchIdx: index,
-                    title: 'Saklar Tembok $swName',
+                    title: 'Switch $swName',
                     subtitle: '2 Servo (ON/OFF)',
                     isConnected: isConnected,
                     onPressOn: () => espProvider.triggerSwitchAction(index, true),

@@ -27,7 +27,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
       final names = ['A', 'B', 'C'];
       final idx = index - 4;
       final name = idx < names.length ? names[idx] : '${idx + 1}';
-      return 'Saklar $name';
+      return 'Switch $name';
     }
   }
 

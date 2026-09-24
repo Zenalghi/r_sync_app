@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../constants/app_colors.dart';
 import '../models/timer_job.dart';
 import '../providers/esp_provider.dart';
@@ -46,7 +47,9 @@ class _TimerScreenState extends State<TimerScreen> {
               ),
               decoration: BoxDecoration(
                 color: isDark ? AppColors.darkBackground : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -58,7 +61,9 @@ class _TimerScreenState extends State<TimerScreen> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                          color: isDark
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -100,33 +105,49 @@ class _TimerScreenState extends State<TimerScreen> {
                             decoration: const InputDecoration(labelText: 'Jam'),
                             items: List.generate(
                               24,
-                              (i) => DropdownMenuItem(value: i, child: Text('$i Jam')),
+                              (i) => DropdownMenuItem(
+                                value: i,
+                                child: Text('$i Jam'),
+                              ),
                             ),
-                            onChanged: (val) => setModalState(() => hours = val ?? 0),
+                            onChanged: (val) =>
+                                setModalState(() => hours = val ?? 0),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: DropdownButtonFormField<int>(
                             initialValue: minutes,
-                            decoration: const InputDecoration(labelText: 'Menit'),
+                            decoration: const InputDecoration(
+                              labelText: 'Menit',
+                            ),
                             items: List.generate(
                               60,
-                              (i) => DropdownMenuItem(value: i, child: Text('$i Mnt')),
+                              (i) => DropdownMenuItem(
+                                value: i,
+                                child: Text('$i Mnt'),
+                              ),
                             ),
-                            onChanged: (val) => setModalState(() => minutes = val ?? 0),
+                            onChanged: (val) =>
+                                setModalState(() => minutes = val ?? 0),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: DropdownButtonFormField<int>(
                             initialValue: seconds,
-                            decoration: const InputDecoration(labelText: 'Detik'),
+                            decoration: const InputDecoration(
+                              labelText: 'Detik',
+                            ),
                             items: List.generate(
                               60,
-                              (i) => DropdownMenuItem(value: i, child: Text('$i Dtk')),
+                              (i) => DropdownMenuItem(
+                                value: i,
+                                child: Text('$i Dtk'),
+                              ),
                             ),
-                            onChanged: (val) => setModalState(() => seconds = val ?? 0),
+                            onChanged: (val) =>
+                                setModalState(() => seconds = val ?? 0),
                           ),
                         ),
                       ],
@@ -146,11 +167,20 @@ class _TimerScreenState extends State<TimerScreen> {
                     const SizedBox(height: 8),
                     SegmentedButton<String>(
                       segments: const [
-                        ButtonSegment(value: 'ON', label: Text('Nyalakan (ON)'), icon: Icon(Icons.flash_on)),
-                        ButtonSegment(value: 'OFF', label: Text('Matikan (OFF)'), icon: Icon(Icons.flash_off)),
+                        ButtonSegment(
+                          value: 'ON',
+                          label: Text('Nyalakan (ON)'),
+                          icon: Icon(Icons.flash_on),
+                        ),
+                        ButtonSegment(
+                          value: 'OFF',
+                          label: Text('Matikan (OFF)'),
+                          icon: Icon(Icons.flash_off),
+                        ),
                       ],
                       selected: {targetAction},
-                      onSelectionChanged: (val) => setModalState(() => targetAction = val.first),
+                      onSelectionChanged: (val) =>
+                          setModalState(() => targetAction = val.first),
                     ),
 
                     const SizedBox(height: 16),
@@ -185,12 +215,16 @@ class _TimerScreenState extends State<TimerScreen> {
                         spacing: 8,
                         children: List.generate(caps.switchesCount, (index) {
                           final names = ['A', 'B', 'C'];
-                          final name = index < names.length ? names[index] : '${index + 1}';
+                          final name = index < names.length
+                              ? names[index]
+                              : '${index + 1}';
                           return FilterChip(
-                            label: Text('Saklar $name'),
+                            label: Text('Switch $name'),
                             selected: selectedSwitches[index],
                             onSelected: (val) {
-                              setModalState(() => selectedSwitches[index] = val);
+                              setModalState(
+                                () => selectedSwitches[index] = val,
+                              );
                             },
                           );
                         }),
@@ -203,13 +237,17 @@ class _TimerScreenState extends State<TimerScreen> {
                       value: invertOnStartEnd,
                       title: const Text(
                         'Lakukan kebalikan saat mulai',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       subtitle: const Text(
                         'Trigger kebalikan saat timer dimulai, lalu kembalikan saat timer habis.',
                         style: TextStyle(fontSize: 11),
                       ),
-                      onChanged: (val) => setModalState(() => invertOnStartEnd = val ?? false),
+                      onChanged: (val) =>
+                          setModalState(() => invertOnStartEnd = val ?? false),
                     ),
 
                     const SizedBox(height: 20),
@@ -226,10 +264,15 @@ class _TimerScreenState extends State<TimerScreen> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () async {
-                              final totalSec = (hours * 3600) + (minutes * 60) + seconds;
+                              final totalSec =
+                                  (hours * 3600) + (minutes * 60) + seconds;
                               if (totalSec <= 0) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Durasi timer harus lebih dari 0 detik')),
+                                  const SnackBar(
+                                    content: Text(
+                                      'Durasi timer harus lebih dari 0 detik',
+                                    ),
+                                  ),
                                 );
                                 return;
                               }
@@ -244,7 +287,11 @@ class _TimerScreenState extends State<TimerScreen> {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(ok ? 'Timer berhasil dibuat' : 'Gagal membuat timer'),
+                                    content: Text(
+                                      ok
+                                          ? 'Timer berhasil dibuat'
+                                          : 'Gagal membuat timer',
+                                    ),
                                   ),
                                 );
                               }
@@ -276,7 +323,10 @@ class _TimerScreenState extends State<TimerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Timer Pewaktu', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          'Timer Pewaktu',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         centerTitle: false,
       ),
       body: timers.isEmpty
@@ -287,7 +337,9 @@ class _TimerScreenState extends State<TimerScreen> {
                   Icon(
                     Icons.timer_off_rounded,
                     size: 64,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -295,7 +347,9 @@ class _TimerScreenState extends State<TimerScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -303,7 +357,9 @@ class _TimerScreenState extends State<TimerScreen> {
                     'Tekan tombol + di bawah untuk membuat timer baru',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
                     ),
                   ),
                 ],
@@ -327,7 +383,11 @@ class _TimerScreenState extends State<TimerScreen> {
     );
   }
 
-  Widget _buildTimerCard(BuildContext context, EspProvider espProvider, TimerJob timer) {
+  Widget _buildTimerCard(
+    BuildContext context,
+    EspProvider espProvider,
+    TimerJob timer,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -349,7 +409,9 @@ class _TimerScreenState extends State<TimerScreen> {
               Row(
                 children: [
                   Icon(
-                    timer.paused ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
+                    timer.paused
+                        ? Icons.pause_circle_rounded
+                        : Icons.play_circle_rounded,
                     color: timer.paused ? AppColors.orange : AppColors.teal,
                   ),
                   const SizedBox(width: 8),
@@ -358,7 +420,9 @@ class _TimerScreenState extends State<TimerScreen> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
                     ),
                   ),
                 ],
@@ -366,8 +430,11 @@ class _TimerScreenState extends State<TimerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: (timer.targetAction == 'ON' ? AppColors.teal : AppColors.orange)
-                      .withValues(alpha: 0.15),
+                  color:
+                      (timer.targetAction == 'ON'
+                              ? AppColors.teal
+                              : AppColors.orange)
+                          .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -375,7 +442,9 @@ class _TimerScreenState extends State<TimerScreen> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: timer.targetAction == 'ON' ? AppColors.teal : AppColors.orange,
+                    color: timer.targetAction == 'ON'
+                        ? AppColors.teal
+                        : AppColors.orange,
                   ),
                 ),
               ),
@@ -396,7 +465,9 @@ class _TimerScreenState extends State<TimerScreen> {
 
           LinearProgressIndicator(
             value: timer.progress,
-            backgroundColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            backgroundColor: isDark
+                ? AppColors.darkBorder
+                : AppColors.lightBorder,
             color: timer.paused ? AppColors.orange : AppColors.teal,
           ),
 
@@ -420,8 +491,15 @@ class _TimerScreenState extends State<TimerScreen> {
               const SizedBox(width: 8),
               TextButton.icon(
                 onPressed: () => espProvider.controlTimer(timer.id, 'cancel'),
-                icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.error),
-                label: const Text('Batalkan', style: TextStyle(color: AppColors.error)),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: AppColors.error,
+                ),
+                label: const Text(
+                  'Batalkan',
+                  style: TextStyle(color: AppColors.error),
+                ),
               ),
             ],
           ),
