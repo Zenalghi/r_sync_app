@@ -56,14 +56,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isRefreshingSettings = true);
     final espProvider = context.read<EspProvider>();
     await espProvider.refreshStatus();
-    if (mounted && espProvider.isConnected) {
-      setState(() {
-        _restAngle = espProvider.status.restAngle;
-        _pressAngle = espProvider.status.pressAngle;
-        _pressDurationMs = espProvider.status.pressDurationMs;
-      });
+    if (espProvider.isConnected) {
+      _syncServoConfigFromStatus();
     }
     if (mounted) setState(() => _isRefreshingSettings = false);
+  }
+
+  void _syncServoConfigFromStatus() {
+    if (!mounted) return;
+    final status = context.read<EspProvider>().status;
+    setState(() {
+      _restAngle = status.restAngle;
+      _pressAngle = status.pressAngle;
+      _pressDurationMs = status.pressDurationMs;
+    });
   }
 
   Future<void> _loadAppVersion() async {
@@ -88,7 +94,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (newIp.isEmpty) return;
 
     final espProvider = context.read<EspProvider>();
+    final ipChanged = newIp != espProvider.espIp;
     await espProvider.setEspIp(newIp);
+    // setEspIp only refetches when the address actually changed
+    if (!ipChanged) {
+      await espProvider.refreshStatus();
+    }
+    _syncServoConfigFromStatus();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -118,6 +130,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (isOk) {
       await espProvider.setEspIp(ipToTest);
+      _syncServoConfigFromStatus();
     }
 
     if (mounted) {
