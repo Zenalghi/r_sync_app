@@ -1,9 +1,11 @@
 // lib/screens/main_screen.dart
 
 import 'dart:io' as io;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../constants/app_colors.dart';
 import '../providers/esp_provider.dart';
 import '../widgets/status_badge.dart';
@@ -23,7 +25,15 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  int _settingsRefreshToken = 0;
   bool _isRailExtended = false;
+
+  void _selectTab(int index) {
+    setState(() {
+      _currentIndex = index;
+      if (index == 3) _settingsRefreshToken++;
+    });
+  }
 
   bool get _isDesktopOrWeb {
     if (kIsWeb) return true;
@@ -44,12 +54,10 @@ class _MainScreenState extends State<MainScreen> {
     final isConnected = espProvider.isConnected;
 
     final screens = [
-      DashboardScreen(
-        onNavigateToSettings: () => setState(() => _currentIndex = 3),
-      ),
+      DashboardScreen(onNavigateToSettings: () => _selectTab(3)),
       const TimerScreen(),
       const SchedulerScreen(),
-      const SettingsScreen(),
+      SettingsScreen(refreshToken: _settingsRefreshToken),
     ];
 
     return LayoutBuilder(
@@ -118,8 +126,16 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                       )
                     : const Icon(Icons.refresh_rounded),
-                tooltip: 'Segarkan Status',
-                onPressed: () => espProvider.refreshStatus(),
+                tooltip: _currentIndex == 3
+                    ? 'Segarkan konfigurasi ESP32'
+                    : 'Segarkan Status',
+                onPressed: () {
+                  if (_currentIndex == 3) {
+                    _selectTab(3);
+                  } else {
+                    espProvider.refreshStatus();
+                  }
+                },
               ),
               const SizedBox(width: 6),
             ],
@@ -129,14 +145,11 @@ class _MainScreenState extends State<MainScreen> {
               if (useNavRail) ...[
                 NavigationRail(
                   extended: _isRailExtended,
-                  backgroundColor:
-                      isDark ? AppColors.darkSurface : Colors.white,
+                  backgroundColor: isDark
+                      ? AppColors.darkSurface
+                      : Colors.white,
                   selectedIndex: _currentIndex,
-                  onDestinationSelected: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                  },
+                  onDestinationSelected: _selectTab,
                   labelType: _isRailExtended
                       ? NavigationRailLabelType.none
                       : NavigationRailLabelType.all,
@@ -144,8 +157,10 @@ class _MainScreenState extends State<MainScreen> {
                   indicatorShape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  selectedIconTheme:
-                      const IconThemeData(color: AppColors.teal, size: 24),
+                  selectedIconTheme: const IconThemeData(
+                    color: AppColors.teal,
+                    size: 24,
+                  ),
                   unselectedIconTheme: IconThemeData(
                     color: isDark
                         ? AppColors.darkTextSecondary
@@ -177,8 +192,9 @@ class _MainScreenState extends State<MainScreen> {
                             ? AppColors.darkTextSecondary
                             : AppColors.lightTextSecondary,
                       ),
-                      tooltip:
-                          _isRailExtended ? 'Ciutkan Menu' : 'Perluas Menu',
+                      tooltip: _isRailExtended
+                          ? 'Ciutkan Menu'
+                          : 'Perluas Menu',
                       onPressed: () {
                         setState(() {
                           _isRailExtended = !_isRailExtended;
@@ -216,10 +232,7 @@ class _MainScreenState extends State<MainScreen> {
                 ),
               ],
               Expanded(
-                child: IndexedStack(
-                  index: _currentIndex,
-                  children: screens,
-                ),
+                child: IndexedStack(index: _currentIndex, children: screens),
               ),
             ],
           ),
@@ -227,11 +240,7 @@ class _MainScreenState extends State<MainScreen> {
               ? null
               : NavigationBar(
                   selectedIndex: _currentIndex,
-                  onDestinationSelected: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                  },
+                  onDestinationSelected: _selectTab,
                   destinations: const [
                     NavigationDestination(
                       icon: Icon(Icons.dashboard_outlined),

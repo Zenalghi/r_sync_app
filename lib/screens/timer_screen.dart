@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/timer_job.dart';
 import '../providers/esp_provider.dart';
+import '../widgets/device_target_chip.dart';
 
 class TimerScreen extends StatefulWidget {
   const TimerScreen({super.key});
@@ -102,12 +103,31 @@ class _TimerScreenState extends State<TimerScreen> {
                         Expanded(
                           child: DropdownButtonFormField<int>(
                             initialValue: hours,
-                            decoration: const InputDecoration(labelText: 'Jam'),
+                            isDense: true,
+                            isExpanded: true,
+                            icon: const Icon(
+                              Icons.arrow_drop_down_rounded,
+                              size: 18,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Jam',
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
                             items: List.generate(
                               24,
                               (i) => DropdownMenuItem(
                                 value: i,
-                                child: Text('$i Jam'),
+                                child: Text(
+                                  '$i',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
                               ),
                             ),
                             onChanged: (val) =>
@@ -118,14 +138,31 @@ class _TimerScreenState extends State<TimerScreen> {
                         Expanded(
                           child: DropdownButtonFormField<int>(
                             initialValue: minutes,
-                            decoration: const InputDecoration(
+                            isDense: true,
+                            isExpanded: true,
+                            icon: const Icon(
+                              Icons.arrow_drop_down_rounded,
+                              size: 18,
+                            ),
+                            decoration: InputDecoration(
                               labelText: 'Menit',
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                             items: List.generate(
                               60,
                               (i) => DropdownMenuItem(
                                 value: i,
-                                child: Text('$i Mnt'),
+                                child: Text(
+                                  '$i',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
                               ),
                             ),
                             onChanged: (val) =>
@@ -136,14 +173,31 @@ class _TimerScreenState extends State<TimerScreen> {
                         Expanded(
                           child: DropdownButtonFormField<int>(
                             initialValue: seconds,
-                            decoration: const InputDecoration(
+                            isDense: true,
+                            isExpanded: true,
+                            icon: const Icon(
+                              Icons.arrow_drop_down_rounded,
+                              size: 18,
+                            ),
+                            decoration: InputDecoration(
                               labelText: 'Detik',
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                             items: List.generate(
                               60,
                               (i) => DropdownMenuItem(
                                 value: i,
-                                child: Text('$i Dtk'),
+                                child: Text(
+                                  '$i',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
                               ),
                             ),
                             onChanged: (val) =>
@@ -194,14 +248,36 @@ class _TimerScreenState extends State<TimerScreen> {
                         color: isDark ? AppColors.tealLight : AppColors.teal,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
 
-                    if (caps.relaysCount > 0)
+                    if (caps.relaysCount > 0) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.bolt_rounded,
+                            size: 14,
+                            color: AppColors.teal,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Channel Relay',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
                       Wrap(
                         spacing: 8,
+                        runSpacing: 8,
                         children: List.generate(caps.relaysCount, (index) {
-                          return FilterChip(
-                            label: Text('Relay ${index + 1}'),
+                          return DeviceTargetChip(
+                            label: 'Relay ${index + 1}',
                             selected: selectedRelays[index],
                             onSelected: (val) {
                               setModalState(() => selectedRelays[index] = val);
@@ -209,18 +285,43 @@ class _TimerScreenState extends State<TimerScreen> {
                           );
                         }),
                       ),
+                      const SizedBox(height: 12),
+                    ],
 
-                    if (caps.switchesCount > 0)
+                    if (caps.switchesCount > 0) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.touch_app_rounded,
+                            size: 14,
+                            color: AppColors.indigo,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Saklar Tembok (Servo)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
                       Wrap(
                         spacing: 8,
+                        runSpacing: 8,
                         children: List.generate(caps.switchesCount, (index) {
                           final names = ['A', 'B', 'C'];
                           final name = index < names.length
                               ? names[index]
                               : '${index + 1}';
-                          return FilterChip(
-                            label: Text('Switch $name'),
+                          return DeviceTargetChip(
+                            label: 'Switch $name',
                             selected: selectedSwitches[index],
+                            accent: AppColors.indigo,
                             onSelected: (val) {
                               setModalState(
                                 () => selectedSwitches[index] = val,
@@ -229,6 +330,7 @@ class _TimerScreenState extends State<TimerScreen> {
                           );
                         }),
                       ),
+                    ],
 
                     const SizedBox(height: 16),
 
@@ -343,7 +445,7 @@ class _TimerScreenState extends State<TimerScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Belum Ada Timer Aktif',
+                    'Belum Ada Timer',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -354,7 +456,8 @@ class _TimerScreenState extends State<TimerScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Tekan tombol + di bawah untuk membuat timer baru',
+                    'Tekan tombol + di bawah untuk membuat timer baru.\nTimer yang sudah selesai dapat disimpan & dijalankan ulang.',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
                       color: isDark
@@ -389,6 +492,20 @@ class _TimerScreenState extends State<TimerScreen> {
     TimerJob timer,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isFinished = timer.isFinished;
+    final isPaused = timer.isPaused;
+
+    final Color statusColor = isFinished
+        ? AppColors.emerald
+        : (isPaused ? AppColors.orange : AppColors.teal);
+
+    final IconData statusIcon = isFinished
+        ? Icons.check_circle_rounded
+        : (isPaused ? Icons.pause_circle_rounded : Icons.play_circle_rounded);
+
+    final String statusText = isFinished
+        ? 'Selesai'
+        : (isPaused ? 'Jeda' : 'Berjalan');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -397,7 +514,16 @@ class _TimerScreenState extends State<TimerScreen> {
         color: isDark ? AppColors.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          color: isFinished
+              ? AppColors.themedBorder(
+                  AppColors.emerald,
+                  Theme.of(context).brightness,
+                )
+              : AppColors.themedBorder(
+                  statusColor,
+                  Theme.of(context).brightness,
+                ),
+          width: isFinished ? 1 : 1.5,
         ),
       ),
       child: Column(
@@ -408,12 +534,7 @@ class _TimerScreenState extends State<TimerScreen> {
             children: [
               Row(
                 children: [
-                  Icon(
-                    timer.paused
-                        ? Icons.pause_circle_rounded
-                        : Icons.play_circle_rounded,
-                    color: timer.paused ? AppColors.orange : AppColors.teal,
-                  ),
+                  Icon(statusIcon, color: statusColor, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Timer #${timer.id}',
@@ -423,6 +544,25 @@ class _TimerScreenState extends State<TimerScreen> {
                       color: isDark
                           ? AppColors.darkTextPrimary
                           : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
                     ),
                   ),
                 ],
@@ -452,55 +592,187 @@ class _TimerScreenState extends State<TimerScreen> {
           ),
           const SizedBox(height: 12),
 
-          Text(
-            timer.formattedRemaining,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              fontFamily: 'monospace',
-              letterSpacing: 1.2,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                isFinished ? timer.formattedTotal : timer.formattedRemaining,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'monospace',
+                  letterSpacing: 1.2,
+                  color: isFinished
+                      ? (isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary)
+                      : statusColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              if (isFinished)
+                Text(
+                  'Durasi Total',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
+                  ),
+                )
+              else
+                Text(
+                  'dari ${timer.formattedTotal}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
 
           LinearProgressIndicator(
-            value: timer.progress,
+            value: isFinished ? 1.0 : timer.progress,
             backgroundColor: isDark
                 ? AppColors.darkBorder
                 : AppColors.lightBorder,
-            color: timer.paused ? AppColors.orange : AppColors.teal,
+            color: statusColor,
+          ),
+          const SizedBox(height: 10),
+
+          // Target device & info summary
+          Row(
+            children: [
+              Icon(
+                Icons.devices_rounded,
+                size: 14,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Target: ${timer.targetSummary()}${timer.invertOnStartEnd ? ' • Invert Start/End' : ''}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
 
           const SizedBox(height: 12),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
+          const SizedBox(height: 8),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              if (timer.paused)
+              if (isFinished) ...[
                 TextButton.icon(
+                  onPressed: () => espProvider.controlTimer(timer.id, 'remove'),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                  label: const Text('Hapus'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => espProvider.controlTimer(timer.id, 'start'),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                  label: const Text('Mulai Timer'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ] else if (isPaused) ...[
+                TextButton.icon(
+                  onPressed: () => espProvider.controlTimer(timer.id, 'cancel'),
+                  icon: const Icon(Icons.stop_rounded, size: 18),
+                  label: const Text('Hentikan'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
                   onPressed: () => espProvider.controlTimer(timer.id, 'resume'),
                   icon: const Icon(Icons.play_arrow_rounded, size: 18),
                   label: const Text('Lanjutkan'),
-                )
-              else
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ] else ...[
                 TextButton.icon(
+                  onPressed: () => espProvider.controlTimer(timer.id, 'cancel'),
+                  icon: const Icon(Icons.stop_rounded, size: 18),
+                  label: const Text('Batalkan'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
                   onPressed: () => espProvider.controlTimer(timer.id, 'pause'),
                   icon: const Icon(Icons.pause_rounded, size: 18),
                   label: const Text('Jeda'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.teal,
+                    side: const BorderSide(color: AppColors.teal),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                 ),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: () => espProvider.controlTimer(timer.id, 'cancel'),
-                icon: const Icon(
-                  Icons.close_rounded,
-                  size: 18,
-                  color: AppColors.error,
-                ),
-                label: const Text(
-                  'Batalkan',
-                  style: TextStyle(color: AppColors.error),
-                ),
-              ),
+              ],
             ],
           ),
         ],

@@ -25,6 +25,9 @@ class ApiException implements Exception {
 class ApiService {
   final http.Client _client;
   static const Duration defaultTimeout = Duration(seconds: 4);
+  String? _relayPolarityError;
+
+  String? get relayPolarityError => _relayPolarityError;
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -43,9 +46,9 @@ class ApiService {
   }
 
   Map<String, String> get _postHeaders => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, text/plain, */*',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json, text/plain, */*',
+  };
 
   /// Fetches system capabilities from `GET /api/capabilities`
   Future<EspCapabilities> getCapabilities(String ip) async {
@@ -60,19 +63,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final caps = EspCapabilities.fromJson(data);
-        await caps.saveToLocal(); // Save capabilities to SharedPreferences
+        await caps.saveToLocal();
         return caps;
       } else {
         return EspCapabilities.initial();
       }
     } catch (_) {
-      // Return saved capabilities or initial default if offline
       final local = await EspCapabilities.loadFromLocal();
       return local ?? EspCapabilities.initial();
     }
   }
 
-  /// Fetches system status, relays, switches, and timers from `GET /api/status`
+  /// Fetches system status from `GET /api/status`
   Future<EspStatus> getStatus(String ip) async {
     final baseUrl = _formatBaseUrl(ip);
     final uri = Uri.parse('$baseUrl/api/status');
@@ -112,7 +114,6 @@ class ApiService {
       final response = await _client
           .post(uri, headers: _postHeaders, body: jsonEncode(payload))
           .timeout(defaultTimeout);
-
       return response.statusCode == 200;
     } catch (e) {
       debugPrint('ApiService setRelay error: $e');
@@ -120,7 +121,7 @@ class ApiService {
     }
   }
 
-  /// Sets switch state via `POST /api/switch` (switchIdx: 0=A, 1=B, 2=C)
+  /// Sets switch state via `POST /api/switch`
   Future<bool> setSwitch(String ip, int switchIdx, bool state) async {
     final baseUrl = _formatBaseUrl(ip);
     final uri = Uri.parse('$baseUrl/api/switch');
@@ -130,7 +131,6 @@ class ApiService {
       final response = await _client
           .post(uri, headers: _postHeaders, body: jsonEncode(payload))
           .timeout(defaultTimeout);
-
       return response.statusCode == 200;
     } catch (e) {
       debugPrint('ApiService setSwitch error: $e');
@@ -222,31 +222,37 @@ class ApiService {
     }
   }
 
-  /// Sends updated schedule jobs via `POST /api/schedule`
-  Future<bool> saveSchedule(
+  /// Sends full schedule list via `POST /api/schedules` (v3.0.0 global format)
+  Future<bool> saveAllSchedules(
     String ip,
-    int channel,
-    List<ScheduleJob> jobs,
-  ) async {
+    List<ScheduleJob> schedules, {
+    int maxSlots = 10,
+  }) async {
     final baseUrl = _formatBaseUrl(ip);
-    final uri = Uri.parse('$baseUrl/api/schedule');
+    final uri = Uri.parse('$baseUrl/api/schedules');
 
-    final List<Map<String, dynamic>> serializedJobs = [];
-    for (int i = 0; i < 4; i++) {
-      if (i < jobs.length) {
-        serializedJobs.add(jobs[i].toJson());
+    // Build the list padded to maxSlots
+    final List<Map<String, dynamic>> serialized = [];
+    for (int i = 0; i < maxSlots; i++) {
+      if (i < schedules.length) {
+        serialized.add(schedules[i].toJson());
       } else {
-        serializedJobs.add(ScheduleJob.empty().toJson());
+        // Send empty slot
+        serialized.add({
+          'h': 0,
+          'm': 0,
+          'a': 'OFF',
+          'e': false,
+          'r': List.filled(4, false),
+          's': List.filled(3, false),
+        });
       }
     }
 
-    final payload = {'channel': channel, 'jobs': serializedJobs};
-
     try {
       final response = await _client
-          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
+          .post(uri, headers: _postHeaders, body: jsonEncode(serialized))
           .timeout(defaultTimeout);
-
       return response.statusCode == 200;
     } catch (e) {
       return false;
@@ -301,9 +307,36 @@ class ApiService {
 
   /// Sets relay active polarity
   Future<bool> setRelayPolarity(String ip, bool activeLow) async {
+    _relayPolarityError = null;
     final baseUrl = _formatBaseUrl(ip);
     final uri = Uri.parse('$baseUrl/api/relay/polarity');
     final payload = {'activeLow': activeLow};
+
+    try {
+      final response = await _client
+          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
+          .timeout(defaultTimeout);
+      if (response.statusCode == 200) return true;
+      _relayPolarityError =
+          'HTTP ${response.statusCode}: ${response.body.trim()}';
+      debugPrint('ApiService setRelayPolarity: $_relayPolarityError');
+      return false;
+    } catch (e) {
+      _relayPolarityError = e.toString();
+      debugPrint('ApiService setRelayPolarity error: $e');
+      return false;
+    }
+  }
+
+  /// Sets hardware active/inactive flags via `POST /api/hardware/config`
+  Future<bool> setHardwareConfig(
+    String ip, {
+    required List<bool> relays,
+    required List<bool> switches,
+  }) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/hardware/config');
+    final payload = {'relays': relays, 'switches': switches};
 
     try {
       final response = await _client

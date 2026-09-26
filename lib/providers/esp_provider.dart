@@ -1,6 +1,7 @@
 // lib/providers/esp_provider.dart
 
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/esp_capabilities.dart';
@@ -21,6 +22,7 @@ class EspProvider extends ChangeNotifier {
   Timer? _pollTimer;
   late bool _autoRefresh;
   late int _pollInterval;
+  String? _relayPolarityError;
 
   EspProvider(this._apiService, this._storageService) {
     _espIp = _storageService.getEspIp();
@@ -45,6 +47,7 @@ class EspProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get autoRefresh => _autoRefresh;
   int get pollInterval => _pollInterval;
+  String? get relayPolarityError => _relayPolarityError;
 
   Future<void> _loadCachedCapabilities() async {
     final cached = await EspCapabilities.loadFromLocal();
@@ -199,6 +202,40 @@ class EspProvider extends ChangeNotifier {
     return _apiService.resetWifi(_espIp);
   }
 
+  /// Set hardware active/inactive flags (relay/switch enable per-channel)
+  Future<bool> setHardwareConfig({
+    required List<bool> relays,
+    required List<bool> switches,
+  }) async {
+    final success = await _apiService.setHardwareConfig(
+      _espIp,
+      relays: relays,
+      switches: switches,
+    );
+    if (success) {
+      _capabilities = EspCapabilities(
+        deviceName: _capabilities.deviceName,
+        version: _capabilities.version,
+        relaysCount: relays.where((r) => r).length,
+        switchesCount: switches.where((s) => s).length,
+        servosCount: _capabilities.servosCount,
+        timerFeature: _capabilities.timerFeature,
+        maxTimers: _capabilities.maxTimers,
+        schedulerFeature: _capabilities.schedulerFeature,
+        maxSchedules: _capabilities.maxSchedules,
+        servoConfigFeature: _capabilities.servoConfigFeature,
+        oledConnected: _capabilities.oledConnected,
+        activeRelays: relays,
+        activeSwitches: switches,
+      );
+      await _capabilities.saveToLocal();
+      notifyListeners();
+      // Refresh to get updated status
+      await _silentRefresh();
+    }
+    return success;
+  }
+
   Future<void> setAutoRefresh(bool enabled) async {
     if (_autoRefresh == enabled) return;
     _autoRefresh = enabled;
@@ -264,7 +301,12 @@ class EspProvider extends ChangeNotifier {
   Future<bool> setRelayPolarity(bool activeLow) async {
     final success = await _apiService.setRelayPolarity(_espIp, activeLow);
     if (success) {
+      _relayPolarityError = null;
       _status = _status.copyWith(activeLow: activeLow);
+      notifyListeners();
+      await _silentRefresh();
+    } else {
+      _relayPolarityError = _apiService.relayPolarityError;
       notifyListeners();
     }
     return success;

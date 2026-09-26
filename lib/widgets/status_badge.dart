@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 
 /// Animated pulse dot and status badge widget indicating ESP32 connection state.
@@ -21,15 +22,13 @@ class StatusBadge extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
       decoration: BoxDecoration(
         color: isConnected
             ? (isDark
-                ? AppColors.tealDark.withValues(alpha: 0.3)
-                : AppColors.tealContainer)
-            : (isDark
-                ? AppColors.darkCard
-                : Colors.grey.shade200),
+                  ? AppColors.tealDark.withValues(alpha: 0.3)
+                  : AppColors.tealContainer)
+            : (isDark ? AppColors.darkCard : Colors.grey.shade200),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isConnected
@@ -47,22 +46,30 @@ class StatusBadge extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isConnected ? (ip.isNotEmpty ? ip : 'ESP32 Terhubung') : 'ESP32 Terputus',
+                isConnected
+                    ? (ip.isNotEmpty ? ip : 'ESP32 Terhubung')
+                    : 'ESP32 Terputus',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: isConnected
                       ? (isDark ? AppColors.tealLight : AppColors.tealDark)
-                      : (isDark ? AppColors.darkTextSecondary : Colors.grey.shade700),
+                      : (isDark
+                            ? AppColors.darkTextSecondary
+                            : Colors.grey.shade700),
                 ),
               ),
-              if (isConnected && time.isNotEmpty && !time.contains('Not Synced'))
+              if (isConnected &&
+                  time.isNotEmpty &&
+                  !time.contains('Not Synced'))
                 Text(
                   time.split(' ').length > 1 ? time.split(' ')[1] : time,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
                   ),
                 ),
             ],
@@ -94,9 +101,10 @@ class _PulsingDotState extends State<_PulsingDot>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.6,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override

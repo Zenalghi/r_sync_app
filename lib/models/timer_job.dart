@@ -1,11 +1,13 @@
 // lib/models/timer_job.dart
 
-/// Represents an active countdown timer from the ESP32 server.
+/// Represents a countdown timer from the ESP32 server.
+/// Finished timers are kept as history (remainingSec == 0, finished == true).
 class TimerJob {
   final int id;
   final int totalDurationSec;
   final int remainingSec;
   final bool paused;
+  final bool finished;
   final bool invertOnStartEnd;
   final String targetAction; // "ON" or "OFF"
   final List<bool> targetRelays;
@@ -16,6 +18,7 @@ class TimerJob {
     required this.totalDurationSec,
     required this.remainingSec,
     required this.paused,
+    this.finished = false,
     required this.invertOnStartEnd,
     required this.targetAction,
     required this.targetRelays,
@@ -23,11 +26,13 @@ class TimerJob {
   });
 
   factory TimerJob.fromJson(Map<String, dynamic> json) {
-    final rList = (json['targetRelays'] as List<dynamic>?)
+    final rList =
+        (json['targetRelays'] as List<dynamic>?)
             ?.map((e) => e as bool)
             .toList() ??
         [];
-    final sList = (json['targetSwitches'] as List<dynamic>?)
+    final sList =
+        (json['targetSwitches'] as List<dynamic>?)
             ?.map((e) => e as bool)
             .toList() ??
         [];
@@ -37,11 +42,32 @@ class TimerJob {
       totalDurationSec: json['totalDurationSec'] as int? ?? 0,
       remainingSec: json['remainingSec'] as int? ?? 0,
       paused: json['paused'] as bool? ?? false,
+      finished: json['finished'] as bool? ?? false,
       invertOnStartEnd: json['invertOnStartEnd'] as bool? ?? false,
       targetAction: json['targetAction'] as String? ?? 'ON',
       targetRelays: rList,
       targetSwitches: sList,
     );
+  }
+
+  bool get isFinished => finished || (!paused && remainingSec == 0);
+  bool get isPaused => paused && !isFinished;
+  bool get isRunning => !paused && !isFinished && remainingSec > 0;
+
+  String targetSummary({int relayCount = 4, int switchCount = 3}) {
+    final parts = <String>[];
+    for (int i = 0; i < relayCount && i < targetRelays.length; i++) {
+      if (targetRelays[i]) parts.add('R${i + 1}');
+    }
+    final switchNames = ['A', 'B', 'C'];
+    for (int i = 0; i < switchCount && i < targetSwitches.length; i++) {
+      if (targetSwitches[i]) {
+        parts.add(
+          'Sw${i < switchNames.length ? switchNames[i] : (i + 1).toString()}',
+        );
+      }
+    }
+    return parts.isEmpty ? 'Tanpa Target' : parts.join(', ');
   }
 
   String get formattedRemaining {

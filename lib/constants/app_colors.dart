@@ -55,6 +55,9 @@ class AppColors {
   static const Color darkTextSecondary = Color(0xFF94A3B8);
   static const Color darkTextMuted = Color(0xFF64748B);
 
+  static Color themedBorder(Color accent, Brightness brightness) =>
+      accent.withValues(alpha: brightness == Brightness.dark ? 0.58 : 0.42);
+
   // Relay-Specific Gradients
   static const LinearGradient relay1Gradient = LinearGradient(
     colors: [Color(0xFF178697), Color(0xFF22A3B8)],

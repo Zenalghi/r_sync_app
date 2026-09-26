@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 import '../models/schedule_job.dart';
 
@@ -25,25 +26,93 @@ class RelayCard extends StatelessWidget {
     required this.onToggle,
   });
 
+  Color get _primaryColor {
+    switch (channel) {
+      case 1:
+        return AppColors.teal;
+      case 2:
+        return AppColors.orange;
+      case 3:
+        return AppColors.indigo;
+      case 4:
+        return AppColors.emerald;
+      default:
+        return AppColors.teal;
+    }
+  }
+
+  Color get _primaryLightColor {
+    switch (channel) {
+      case 1:
+        return AppColors.tealLight;
+      case 2:
+        return AppColors.orangeLight;
+      case 3:
+        return const Color(0xFF7986CB);
+      case 4:
+        return const Color(0xFF34D399);
+      default:
+        return AppColors.tealLight;
+    }
+  }
+
+  Color _containerColor(bool isDark) {
+    if (isDark) {
+      switch (channel) {
+        case 1:
+          return AppColors.tealContainerDark.withValues(alpha: 0.4);
+        case 2:
+          return AppColors.orangeContainerDark.withValues(alpha: 0.4);
+        case 3:
+          return AppColors.indigoContainerDark.withValues(alpha: 0.4);
+        case 4:
+          return AppColors.emeraldContainerDark.withValues(alpha: 0.4);
+        default:
+          return AppColors.tealContainerDark.withValues(alpha: 0.4);
+      }
+    } else {
+      switch (channel) {
+        case 1:
+          return AppColors.tealContainer.withValues(alpha: 0.5);
+        case 2:
+          return AppColors.orangeContainer.withValues(alpha: 0.5);
+        case 3:
+          return AppColors.indigoContainer.withValues(alpha: 0.5);
+        case 4:
+          return AppColors.emeraldContainer.withValues(alpha: 0.5);
+        default:
+          return AppColors.tealContainer.withValues(alpha: 0.5);
+      }
+    }
+  }
+
+  IconData get _icon {
+    switch (channel) {
+      case 1:
+        return Icons.bolt_rounded;
+      case 2:
+        return Icons.power_rounded;
+      case 3:
+        return Icons.lightbulb_rounded;
+      case 4:
+        return Icons.electrical_services_rounded;
+      default:
+        return Icons.power_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = channel == 1 ? AppColors.teal : AppColors.orange;
-    final primaryLightColor =
-        channel == 1 ? AppColors.tealLight : AppColors.orangeLight;
+    final primaryColor = _primaryColor;
+    final primaryLightColor = _primaryLightColor;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
         color: isOn
-            ? (isDark
-                ? (channel == 1
-                    ? AppColors.tealContainerDark.withValues(alpha: 0.4)
-                    : AppColors.orangeContainerDark.withValues(alpha: 0.4))
-                : (channel == 1
-                    ? AppColors.tealContainer.withValues(alpha: 0.5)
-                    : AppColors.orangeContainer.withValues(alpha: 0.5)))
+            ? _containerColor(isDark)
             : (isDark ? AppColors.darkCard : AppColors.lightCard),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
@@ -93,19 +162,17 @@ class RelayCard extends StatelessWidget {
                             color: isOn
                                 ? primaryColor
                                 : (isDark
-                                    ? AppColors.darkSurface
-                                    : Colors.grey.shade100),
+                                      ? AppColors.darkSurface
+                                      : Colors.grey.shade100),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
-                            channel == 1
-                                ? Icons.bolt_rounded
-                                : Icons.power_rounded,
+                            _icon,
                             color: isOn
                                 ? Colors.white
                                 : (isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary),
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary),
                             size: 24,
                           ),
                         ),
@@ -174,8 +241,8 @@ class RelayCard extends StatelessWidget {
                         color: isOn
                             ? primaryColor.withValues(alpha: 0.15)
                             : (isDark
-                                ? AppColors.darkSurface
-                                : Colors.grey.shade100),
+                                  ? AppColors.darkSurface
+                                  : Colors.grey.shade100),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -191,7 +258,9 @@ class RelayCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            isOn ? 'STATUS: MENYALA (ON)' : 'STATUS: MATI (OFF)',
+                            isOn
+                                ? 'STATUS: MENYALA (ON)'
+                                : 'STATUS: MATI (OFF)',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -199,8 +268,8 @@ class RelayCard extends StatelessWidget {
                               color: isOn
                                   ? primaryColor
                                   : (isDark
-                                      ? AppColors.darkTextSecondary
-                                      : Colors.grey.shade700),
+                                        ? AppColors.darkTextSecondary
+                                        : Colors.grey.shade700),
                             ),
                           ),
                         ],

@@ -11,12 +11,7 @@ void main() {
 
   group('ScheduleJob Model Tests', () {
     test('Correctly serializes and deserializes ESP32 JSON', () {
-      final json = {
-        'h': 14,
-        'm': 45,
-        'a': 'ON',
-        'e': true,
-      };
+      final json = {'h': 14, 'm': 45, 'a': 'ON', 'e': true};
 
       final job = ScheduleJob.fromJson(json);
       expect(job.hour, 14);
@@ -34,19 +29,21 @@ void main() {
       expect(outJson['e'], true);
     });
 
-    test('Identifies empty/unconfigured slots', () {
+    test('Identifies empty/unconfigured target lists', () {
       final emptyJob = ScheduleJob.empty();
-      expect(emptyJob.isEmptySlot, true);
+      expect(emptyJob.hasNoTargets, true);
       expect(emptyJob.enabled, false);
       expect(emptyJob.action, 'OFF');
 
-      const configuredJob = ScheduleJob(
+      final configuredJob = ScheduleJob(
         hour: 8,
         minute: 0,
         action: 'ON',
         enabled: true,
+        targetRelays: [true, false, false, false],
+        targetSwitches: [false, false, false],
       );
-      expect(configuredJob.isEmptySlot, false);
+      expect(configuredJob.hasNoTargets, false);
     });
   });
 
@@ -56,38 +53,42 @@ void main() {
         'ip': '192.168.4.1',
         'wifi': 'Connected',
         'time': '2026-09-11 12:30:00',
-        'relay1': 'ON',
-        'relay2': 'OFF',
+        'relays': ['ON', 'OFF'],
+        'switches': ['OFF', 'OFF', 'OFF'],
         'displayPage': 1,
         'activeLow': false,
-        'jobs1': [
-          {'h': 8, 'm': 0, 'a': 'ON', 'e': true},
-          {'h': 18, 'm': 0, 'a': 'OFF', 'e': true},
-          {'h': 0, 'm': 0, 'a': 'OFF', 'e': false},
-          {'h': 0, 'm': 0, 'a': 'OFF', 'e': false},
-        ],
-        'jobs2': [
-          {'h': 0, 'm': 0, 'a': 'OFF', 'e': false},
-          {'h': 0, 'm': 0, 'a': 'OFF', 'e': false},
-          {'h': 0, 'm': 0, 'a': 'OFF', 'e': false},
-          {'h': 0, 'm': 0, 'a': 'OFF', 'e': false},
+        'schedules': [
+          {
+            'h': 8,
+            'm': 0,
+            'a': 'ON',
+            'e': true,
+            'r': [true, false],
+            's': [false, false, false],
+          },
+          {
+            'h': 18,
+            'm': 0,
+            'a': 'OFF',
+            'e': true,
+            'r': [true, false],
+            's': [false, false, false],
+          },
         ],
       };
 
       final status = EspStatus.fromJson(json);
       expect(status.ip, '192.168.4.1');
       expect(status.isWifiConnected, true);
-      expect(status.relay1, true);
-      expect(status.relay2, false);
-      expect(status.displayPage, 1);
-      expect(status.activeLow, false);
-      expect(status.jobs1.length, 4);
-      expect(status.jobs2.length, 4);
       expect(status.getRelayState(1), true);
       expect(status.getRelayState(2), false);
+      expect(status.displayPage, 1);
+      expect(status.activeLow, false);
+      expect(status.schedules.length, 2);
 
-      final nextJob = status.getNextActiveJob(1);
+      final nextJob = status.getNextActiveJobForRelay(1);
       expect(nextJob, isNotNull);
+      expect(nextJob!.timeString, '08:00');
     });
   });
 
@@ -104,71 +105,97 @@ void main() {
   });
 
   group('ScheduleProvider Smart Logic Tests', () {
-    test('Recommends smart alternating actions (empty -> ON, ON -> OFF, OFF -> ON)', () {
-      // Mock ApiService
-      final scheduleProvider = ScheduleProvider(ApiService());
+    ScheduleJob makeJob(int hour, int minute, String action) => ScheduleJob(
+      hour: hour,
+      minute: minute,
+      action: action,
+      enabled: true,
+      targetRelays: const [true, false, false, false],
+      targetSwitches: const [false, false, false],
+    );
+
+    test('Recommends smart alternating actions (empty -> ON, ON -> OFF, OFF -> ON)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final scheduleProvider = ScheduleProvider(_FakeApiService());
 
       // 1. Initially empty -> should recommend ON
-      expect(scheduleProvider.getNextRecommendedAction(1), 'ON');
+      expect(scheduleProvider.getNextRecommendedAction(), 'ON');
 
-      // 2. Simulate status update with job1 = 08:00 ON
-      scheduleProvider.updateFromEspStatus([
-        const ScheduleJob(hour: 8, minute: 0, action: 'ON', enabled: true),
-        ScheduleJob.empty(),
-        ScheduleJob.empty(),
-        ScheduleJob.empty(),
-      ], []);
+      // 2. Add job at 08:00 ON
+      await scheduleProvider.addSchedule(
+        espIp: '192.168.4.1',
+        newJob: makeJob(8, 0, 'ON'),
+      );
 
-      // Now last job was ON -> should recommend OFF!
-      expect(scheduleProvider.getNextRecommendedAction(1), 'OFF');
-      expect(scheduleProvider.getJobs(1).length, 1);
+      // Last job was ON -> should recommend OFF!
+      expect(scheduleProvider.getNextRecommendedAction(), 'OFF');
+      expect(scheduleProvider.schedules.length, 1);
 
-      // 3. Simulate status update with second job = 12:00 OFF
-      scheduleProvider.updateFromEspStatus([
-        const ScheduleJob(hour: 8, minute: 0, action: 'ON', enabled: true),
-        const ScheduleJob(hour: 12, minute: 0, action: 'OFF', enabled: true),
-        ScheduleJob.empty(),
-        ScheduleJob.empty(),
-      ], []);
+      // 3. Add job at 12:00 OFF
+      await scheduleProvider.addSchedule(
+        espIp: '192.168.4.1',
+        newJob: makeJob(12, 0, 'OFF'),
+      );
 
-      // Now last job was OFF -> should recommend ON!
-      expect(scheduleProvider.getNextRecommendedAction(1), 'ON');
-      expect(scheduleProvider.getJobs(1).length, 2);
+      // Last job was OFF -> should recommend ON!
+      expect(scheduleProvider.getNextRecommendedAction(), 'ON');
+      expect(scheduleProvider.schedules.length, 2);
 
-      // 4. Test capacity: 2 jobs used, can still add
-      expect(scheduleProvider.canAddJob(1), true);
-
-      // 5. Simulate 4 jobs loaded
-      scheduleProvider.updateFromEspStatus([
-        const ScheduleJob(hour: 8, minute: 0, action: 'ON', enabled: true),
-        const ScheduleJob(hour: 12, minute: 0, action: 'OFF', enabled: true),
-        const ScheduleJob(hour: 14, minute: 0, action: 'ON', enabled: true),
-        const ScheduleJob(hour: 18, minute: 0, action: 'OFF', enabled: true),
-      ], []);
-
-      expect(scheduleProvider.getJobs(1).length, 4);
-      expect(scheduleProvider.canAddJob(1), false);
+      // 4. Still under capacity
+      expect(scheduleProvider.canAdd, true);
     });
 
-    test('Automatically parses and displays configured schedules (e.g. 17:30 ON)', () {
-      final scheduleProvider = ScheduleProvider(ApiService());
+    test('Enforces max schedule capacity', () async {
+      SharedPreferences.setMockInitialValues({});
+      final scheduleProvider = ScheduleProvider(_FakeApiService());
 
-      // Simulate incoming status from ESP32 containing 17:30 ON in slot 0, and slot 1..3 empty
-      scheduleProvider.updateFromEspStatus([
-        const ScheduleJob(hour: 17, minute: 30, action: 'ON', enabled: true),
-        ScheduleJob.empty(),
-        ScheduleJob.empty(),
-        ScheduleJob.empty(),
-      ], []);
+      for (int i = 0; i < ScheduleProvider.maxSchedules; i++) {
+        final ok = await scheduleProvider.addSchedule(
+          espIp: '192.168.4.1',
+          newJob: makeJob(i, 0, i.isEven ? 'ON' : 'OFF'),
+        );
+        expect(ok, true);
+      }
 
-      // Verifies that slot 0 is retained and empty slots are filtered out
-      expect(scheduleProvider.getJobs(1).length, 1);
-      expect(scheduleProvider.getJobs(1).first.timeString, '17:30');
-      expect(scheduleProvider.getJobs(1).first.action, 'ON');
-      expect(scheduleProvider.getJobs(1).first.enabled, true);
+      expect(scheduleProvider.schedules.length, ScheduleProvider.maxSchedules);
+      expect(scheduleProvider.canAdd, false);
 
-      // Smart recommendation for next job should now be OFF
-      expect(scheduleProvider.getNextRecommendedAction(1), 'OFF');
+      final rejected = await scheduleProvider.addSchedule(
+        espIp: '192.168.4.1',
+        newJob: makeJob(23, 0, 'ON'),
+      );
+      expect(rejected, false);
+    });
+
+    test('Deletes a schedule entry', () async {
+      SharedPreferences.setMockInitialValues({});
+      final scheduleProvider = ScheduleProvider(_FakeApiService());
+
+      await scheduleProvider.addSchedule(
+        espIp: '192.168.4.1',
+        newJob: makeJob(17, 30, 'ON'),
+      );
+      expect(scheduleProvider.schedules.length, 1);
+      expect(scheduleProvider.schedules.first.timeString, '17:30');
+
+      final deleted = await scheduleProvider.deleteSchedule(
+        espIp: '192.168.4.1',
+        index: 0,
+      );
+      expect(deleted, true);
+      expect(scheduleProvider.schedules, isEmpty);
     });
   });
+}
+
+/// Fake ApiService that simulates successful ESP32 sync without networking.
+class _FakeApiService extends ApiService {
+  @override
+  Future<bool> saveAllSchedules(
+    String ip,
+    List<ScheduleJob> schedules, {
+    int maxSlots = 10,
+  }) async {
+    return true;
+  }
 }

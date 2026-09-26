@@ -12,7 +12,9 @@ import '../providers/theme_provider.dart';
 /// Servo Calibration (Rest & Press Angles), Relay Active LOW/HIGH polarity,
 /// Light/Dark theme switching, background polling interval, and device diagnostics.
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final int refreshToken;
+
+  const SettingsScreen({super.key, this.refreshToken = 0});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -24,24 +26,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool? _testResult;
   String? _testMessage;
   String _appVersion = '1.0.0';
-
-  // Servo Calibration state
   late int _restAngle;
   late int _pressAngle;
   late int _pressDurationMs;
   bool _isSavingServoConfig = false;
+  bool _isRefreshingSettings = false;
 
   @override
   void initState() {
     super.initState();
     final espProvider = context.read<EspProvider>();
     _ipController = TextEditingController(text: espProvider.espIp);
-
     _restAngle = espProvider.status.restAngle;
     _pressAngle = espProvider.status.pressAngle;
     _pressDurationMs = espProvider.status.pressDurationMs;
-
     _loadAppVersion();
+  }
+
+  @override
+  void didUpdateWidget(covariant SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshToken != oldWidget.refreshToken) {
+      _refreshSettingsFromEsp();
+    }
+  }
+
+  Future<void> _refreshSettingsFromEsp() async {
+    if (_isRefreshingSettings) return;
+    setState(() => _isRefreshingSettings = true);
+    final espProvider = context.read<EspProvider>();
+    await espProvider.refreshStatus();
+    if (mounted && espProvider.isConnected) {
+      setState(() {
+        _restAngle = espProvider.status.restAngle;
+        _pressAngle = espProvider.status.pressAngle;
+        _pressDurationMs = espProvider.status.pressDurationMs;
+      });
+    }
+    if (mounted) setState(() => _isRefreshingSettings = false);
   }
 
   Future<void> _loadAppVersion() async {
@@ -117,9 +139,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       pressAngle: _pressAngle,
       pressDurationMs: _pressDurationMs,
     );
-    setState(() => _isSavingServoConfig = false);
-
     if (mounted) {
+      setState(() => _isSavingServoConfig = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -179,7 +200,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             content: Text(
               success
                   ? 'Polaritas relay berhasil diubah ke $targetText!'
-                  : 'Gagal mengubah polaritas relay pada ESP32.',
+                  : 'Gagal mengubah polaritas relay: '
+                        '${espProvider.relayPolarityError ?? 'ESP32 tidak merespons.'}',
             ),
             backgroundColor: success ? AppColors.teal : AppColors.error,
             behavior: SnackBarBehavior.floating,
@@ -248,188 +270,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final caps = espProvider.capabilities;
 
     return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Section 1: ESP32 Device IP Configuration
-          _buildSectionHeader(
-            icon: Icons.router_rounded,
-            title: 'Koneksi Perangkat ESP32',
-            isDark: isDark,
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'ALAMAT IP / HOSTNAME ESP32',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: isDark
-                        ? AppColors.darkTextMuted
-                        : AppColors.lightTextMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                TextField(
-                  controller: _ipController,
-                  keyboardType: TextInputType.url,
-                  decoration: InputDecoration(
-                    hintText: 'Contoh: 192.168.4.1 atau 192.168.1.50',
-                    prefixIcon: const Icon(Icons.lan_rounded, size: 20),
-                    suffixIcon: IconButton(
-                      icon: const Icon(
-                        Icons.check_rounded,
-                        color: AppColors.teal,
-                      ),
-                      tooltip: 'Simpan IP',
-                      onPressed: _saveIp,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Connection Test Feedback Banner
-                if (_testResult != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _testResult!
-                          ? AppColors.emerald.withValues(alpha: 0.15)
-                          : AppColors.error.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: _testResult!
-                            ? AppColors.emerald
-                            : AppColors.error,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _testResult!
-                              ? Icons.check_circle_rounded
-                              : Icons.error_outline_rounded,
-                          size: 18,
-                          color: _testResult!
-                              ? AppColors.emerald
-                              : AppColors.error,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _testMessage ?? '',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _testResult!
-                                  ? AppColors.emerald
-                                  : AppColors.error,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isTesting ? null : _testConnection,
-                        icon: _isTesting
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.teal,
-                                ),
-                              )
-                            : const Icon(Icons.network_check_rounded, size: 18),
-                        label: Text(_isTesting ? 'Menguji...' : 'Tes Koneksi'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.teal,
-                          side: const BorderSide(color: AppColors.teal),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _saveIp,
-                        icon: const Icon(Icons.save_rounded, size: 18),
-                        label: const Text('Simpan IP'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.teal,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Divider(
-                  height: 1,
-                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: espProvider.isConnected ? _confirmResetWifi : null,
-                  icon: const Icon(
-                    Icons.wifi_protected_setup_rounded,
-                    size: 18,
-                  ),
-                  label: const Text('Pindah Wi-Fi / Buka Portal ESP32'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.orange,
-                    side: BorderSide(
-                      color: espProvider.isConnected
-                          ? AppColors.orange
-                          : (isDark
-                                ? AppColors.darkBorder
-                                : Colors.grey.shade400),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          // Section: Servo Calibration (Rest & Press Angle)
-          if (caps.switchesCount > 0) ...[
+      body: RefreshIndicator(
+        onRefresh: _refreshSettingsFromEsp,
+        color: AppColors.teal,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          children: [
+            // Section 1: ESP32 Device IP Configuration
             _buildSectionHeader(
-              icon: Icons.tune_rounded,
-              title: 'Kalibrasi Sudut Servo Switch',
+              icon: Icons.router_rounded,
+              title: 'Koneksi Perangkat ESP32',
               isDark: isDark,
             ),
             const SizedBox(height: 12),
@@ -440,123 +291,114 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: isDark ? AppColors.darkCard : Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  color: AppColors.themedBorder(
+                    AppColors.teal,
+                    Theme.of(context).brightness,
+                  ),
                 ),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Rest Angle Slider
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Rest Angle (Posisi Netral / Mengambang):',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '$_restAngle°',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                  Text(
+                    'ALAMAT IP / HOSTNAME ESP32',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  TextField(
+                    controller: _ipController,
+                    keyboardType: TextInputType.url,
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: 192.168.4.1 atau 192.168.1.50',
+                      prefixIcon: const Icon(Icons.lan_rounded, size: 20),
+                      suffixIcon: IconButton(
+                        icon: const Icon(
+                          Icons.check_rounded,
                           color: AppColors.teal,
                         ),
+                        tooltip: 'Simpan IP',
+                        onPressed: _saveIp,
                       ),
-                    ],
-                  ),
-                  Slider(
-                    value: _restAngle.toDouble(),
-                    min: 0,
-                    max: 180,
-                    divisions: 180,
-                    activeColor: AppColors.teal,
-                    label: '$_restAngle°',
-                    onChanged: (val) =>
-                        setState(() => _restAngle = val.round()),
+                    ),
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
 
-                  // Press Angle Slider
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Press Angle (Posisi Menekan Switch):',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                  // Connection Test Feedback Banner
+                  if (_testResult != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _testResult!
+                            ? AppColors.emerald.withValues(alpha: 0.15)
+                            : AppColors.error.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _testResult!
+                              ? AppColors.emerald
+                              : AppColors.error,
                         ),
                       ),
-                      Text(
-                        '$_pressAngle°',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.orange,
-                        ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _testResult!
+                                ? Icons.check_circle_rounded
+                                : Icons.error_outline_rounded,
+                            size: 18,
+                            color: _testResult!
+                                ? AppColors.emerald
+                                : AppColors.error,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _testMessage ?? '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _testResult!
+                                    ? AppColors.emerald
+                                    : AppColors.error,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  Slider(
-                    value: _pressAngle.toDouble(),
-                    min: 0,
-                    max: 180,
-                    divisions: 180,
-                    activeColor: AppColors.orange,
-                    label: '$_pressAngle°',
-                    onChanged: (val) =>
-                        setState(() => _pressAngle = val.round()),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Press Duration Slider
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Durasi Tekanan (Hold Time):',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '${_pressDurationMs}ms',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.indigo,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Slider(
-                    value: _pressDurationMs.toDouble(),
-                    min: 100,
-                    max: 2000,
-                    divisions: 38,
-                    activeColor: AppColors.indigo,
-                    label: '${_pressDurationMs}ms',
-                    onChanged: (val) =>
-                        setState(() => _pressDurationMs = val.round()),
-                  ),
-
-                  const SizedBox(height: 14),
+                    ),
 
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: espProvider.isConnected
-                              ? () => espProvider.triggerServoTest()
-                              : null,
-                          icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                          label: const Text('Tes Servo'),
+                          onPressed: _isTesting ? null : _testConnection,
+                          icon: _isTesting
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.teal,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.network_check_rounded,
+                                  size: 18,
+                                ),
+                          label: Text(
+                            _isTesting ? 'Menguji...' : 'Tes Koneksi',
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.teal,
                             side: const BorderSide(color: AppColors.teal),
@@ -569,24 +411,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed:
-                              espProvider.isConnected && !_isSavingServoConfig
-                              ? _saveServoConfig
-                              : null,
-                          icon: _isSavingServoConfig
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.check_circle_rounded,
-                                  size: 18,
-                                ),
-                          label: const Text('Simpan'),
+                          onPressed: _saveIp,
+                          icon: const Icon(Icons.save_rounded, size: 18),
+                          label: const Text('Simpan IP'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.teal,
                             foregroundColor: Colors.white,
@@ -598,186 +425,535 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 14),
+                  Divider(
+                    height: 1,
+                    color: isDark
+                        ? AppColors.darkBorder
+                        : AppColors.lightBorder,
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: espProvider.isConnected
+                        ? _confirmResetWifi
+                        : null,
+                    icon: const Icon(
+                      Icons.wifi_protected_setup_rounded,
+                      size: 18,
+                    ),
+                    label: const Text('Pindah Wi-Fi / Buka Portal ESP32'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.orange,
+                      side: BorderSide(
+                        color: espProvider.isConnected
+                            ? AppColors.orange
+                            : (isDark
+                                  ? AppColors.darkBorder
+                                  : Colors.grey.shade400),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
+
             const SizedBox(height: 28),
-          ],
 
-          // Section 2: Relay Hardware Polarity Control
-          _buildSectionHeader(
-            icon: Icons.electric_bolt_rounded,
-            title: 'Konfigurasi Polaritas Relay',
-            isDark: isDark,
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            // Section: Servo Calibration (Rest & Press Angle)
+            if (caps.switchesCount > 0) ...[
+              _buildSectionHeader(
+                icon: Icons.tune_rounded,
+                title: 'Kalibrasi Sudut Servo Switch',
+                isDark: isDark,
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'LOGIKA TRIGGER HARDWARE',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted,
-                      ),
+              const SizedBox(height: 12),
+
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.themedBorder(
+                      AppColors.indigo,
+                      Theme.of(context).brightness,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildPolarityOption(
-                        title: 'Active LOW',
-                        subtitle: 'ON = LOW (0V)\nOFF = HIGH (3.3V)',
-                        icon: Icons.arrow_downward_rounded,
-                        isActiveLowOption: true,
-                        currentActiveLow: espProvider.status.activeLow,
-                        onTap: espProvider.isConnected
-                            ? () => _confirmChangePolarity(true)
-                            : null,
-                        isDark: isDark,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildPolarityOption(
-                        title: 'Active HIGH',
-                        subtitle: 'ON = HIGH (3.3V)\nOFF = LOW (0V)',
-                        icon: Icons.arrow_upward_rounded,
-                        isActiveLowOption: false,
-                        currentActiveLow: espProvider.status.activeLow,
-                        onTap: espProvider.isConnected
-                            ? () => _confirmChangePolarity(false)
-                            : null,
-                        isDark: isDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          // Section 4: Appearance & Theme
-          _buildSectionHeader(
-            icon: Icons.palette_rounded,
-            title: 'Tampilan & Tema',
-            isDark: isDark,
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'MODE TEMA APLIKASI',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: isDark
-                        ? AppColors.darkTextMuted
-                        : AppColors.lightTextMuted,
                   ),
                 ),
-                const SizedBox(height: 12),
-
-                Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildThemeOption(
-                      title: 'Terang',
-                      icon: Icons.light_mode_rounded,
-                      mode: ThemeMode.light,
-                      currentMode: themeProvider.themeMode,
-                      onTap: () => themeProvider.setThemeMode(ThemeMode.light),
-                      isDark: isDark,
+                    // Rest Angle Slider
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Rest Angle (Posisi Netral):',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '$_restAngle°',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.teal,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    _buildThemeOption(
-                      title: 'Gelap',
-                      icon: Icons.dark_mode_rounded,
-                      mode: ThemeMode.dark,
-                      currentMode: themeProvider.themeMode,
-                      onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
-                      isDark: isDark,
+                    Slider(
+                      value: _restAngle.toDouble(),
+                      min: 0,
+                      max: 180,
+                      divisions: 180,
+                      activeColor: AppColors.teal,
+                      label: '$_restAngle°',
+                      onChanged: (val) =>
+                          setState(() => _restAngle = val.round()),
                     ),
-                    const SizedBox(width: 10),
-                    _buildThemeOption(
-                      title: 'Sistem',
-                      icon: Icons.brightness_auto_rounded,
-                      mode: ThemeMode.system,
-                      currentMode: themeProvider.themeMode,
-                      onTap: () => themeProvider.setThemeMode(ThemeMode.system),
-                      isDark: isDark,
+
+                    const SizedBox(height: 10),
+
+                    // Press Angle Slider
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Press Angle (Posisi Menekan Switch):',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '$_pressAngle°',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: _pressAngle.toDouble(),
+                      min: 0,
+                      max: 180,
+                      divisions: 180,
+                      activeColor: AppColors.orange,
+                      label: '$_pressAngle°',
+                      onChanged: (val) =>
+                          setState(() => _pressAngle = val.round()),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Press Duration Slider
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Durasi Tekanan (Hold Time):',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '${_pressDurationMs}ms',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.indigo,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: _pressDurationMs.toDouble(),
+                      min: 100,
+                      max: 2000,
+                      divisions: 38,
+                      activeColor: AppColors.indigo,
+                      label: '${_pressDurationMs}ms',
+                      onChanged: (val) =>
+                          setState(() => _pressDurationMs = val.round()),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: espProvider.isConnected
+                                ? () => espProvider.triggerServoTest()
+                                : null,
+                            icon: const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Tes Servo'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.teal,
+                              side: const BorderSide(color: AppColors.teal),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                espProvider.isConnected && !_isSavingServoConfig
+                                ? _saveServoConfig
+                                : null,
+                            icon: _isSavingServoConfig
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 18,
+                                  ),
+                            label: const Text('Simpan'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.teal,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
+              const SizedBox(height: 28),
+            ],
+
+            // Section 2: Relay Hardware Polarity Control
+            _buildSectionHeader(
+              icon: Icons.electric_bolt_rounded,
+              title: 'Konfigurasi Polaritas Relay',
+              isDark: isDark,
             ),
-          ),
+            const SizedBox(height: 12),
 
-          const SizedBox(height: 28),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.themedBorder(
+                    AppColors.orange,
+                    Theme.of(context).brightness,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'LOGIKA TRIGGER HARDWARE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
 
-          // Section 5: Synchronization & Polling
-          _buildSectionHeader(
-            icon: Icons.sync_rounded,
-            title: 'Sinkronisasi & Pembaruan',
-            isDark: isDark,
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildPolarityOption(
+                          title: 'Active LOW',
+                          subtitle: 'ON = LOW (0V)\nOFF = HIGH (3.3V)',
+                          icon: Icons.arrow_downward_rounded,
+                          isActiveLowOption: true,
+                          currentActiveLow: espProvider.status.activeLow,
+                          onTap: espProvider.isConnected
+                              ? () => _confirmChangePolarity(true)
+                              : null,
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildPolarityOption(
+                          title: 'Active HIGH',
+                          subtitle: 'ON = HIGH (3.3V)\nOFF = LOW (0V)',
+                          icon: Icons.arrow_upward_rounded,
+                          isActiveLowOption: false,
+                          currentActiveLow: espProvider.status.activeLow,
+                          onTap: espProvider.isConnected
+                              ? () => _confirmChangePolarity(false)
+                              : null,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
+
+            const SizedBox(height: 28),
+
+            // Section 4: Appearance & Theme
+            _buildSectionHeader(
+              icon: Icons.palette_rounded,
+              title: 'Tampilan & Tema',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.themedBorder(
+                    AppColors.emerald,
+                    Theme.of(context).brightness,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'MODE TEMA APLIKASI',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      _buildThemeOption(
+                        title: 'Terang',
+                        icon: Icons.light_mode_rounded,
+                        mode: ThemeMode.light,
+                        currentMode: themeProvider.themeMode,
+                        onTap: () =>
+                            themeProvider.setThemeMode(ThemeMode.light),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildThemeOption(
+                        title: 'Gelap',
+                        icon: Icons.dark_mode_rounded,
+                        mode: ThemeMode.dark,
+                        currentMode: themeProvider.themeMode,
+                        onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildThemeOption(
+                        title: 'Sistem',
+                        icon: Icons.brightness_auto_rounded,
+                        mode: ThemeMode.system,
+                        currentMode: themeProvider.themeMode,
+                        onTap: () =>
+                            themeProvider.setThemeMode(ThemeMode.system),
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // Section 5: Synchronization & Polling
+            _buildSectionHeader(
+              icon: Icons.sync_rounded,
+              title: 'Sinkronisasi & Pembaruan',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.themedBorder(
+                    AppColors.tealLight,
+                    Theme.of(context).brightness,
+                  ),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pembaruan Otomatis',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Cek status relay\ndan waktu ESP di background',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Switch.adaptive(
+                        value: espProvider.autoRefresh,
+                        onChanged: (val) => espProvider.setAutoRefresh(val),
+                        activeThumbColor: AppColors.teal,
+                      ),
+                    ],
+                  ),
+                  if (espProvider.autoRefresh) ...[
+                    const Divider(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Interval Polling',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                        DropdownButton<int>(
+                          value: espProvider.pollInterval,
+                          underline: const SizedBox.shrink(),
+                          dropdownColor: isDark
+                              ? AppColors.darkSurface
+                              : Colors.white,
+                          items: const [
+                            DropdownMenuItem(value: 2, child: Text('2 Detik')),
+                            DropdownMenuItem(value: 3, child: Text('3 Detik')),
+                            DropdownMenuItem(value: 5, child: Text('5 Detik')),
+                            DropdownMenuItem(
+                              value: 10,
+                              child: Text('10 Detik'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              espProvider.setPollInterval(val);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // Section 6: Device & App Info
+            _buildSectionHeader(
+              icon: Icons.info_outline_rounded,
+              title: 'Tentang Aplikasi',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.themedBorder(
+                    AppColors.indigo,
+                    Theme.of(context).brightness,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset(
+                      'assets/icons/ico.png',
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppColors.teal,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.device_hub_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Pembaruan Otomatis',
+                          'R-Sync Relay Controller',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                             color: isDark
                                 ? AppColors.darkTextPrimary
                                 : AppColors.lightTextPrimary,
@@ -785,7 +961,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Cek status relay\ndan waktu ESP di background',
+                          'Versi $_appVersion',
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark
@@ -793,140 +969,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 : AppColors.lightTextMuted,
                           ),
                         ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Smart Relay & Servo Wall Switch Automation System',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.teal,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
-                    Switch.adaptive(
-                      value: espProvider.autoRefresh,
-                      onChanged: (val) => espProvider.setAutoRefresh(val),
-                      activeThumbColor: AppColors.teal,
-                    ),
-                  ],
-                ),
-                if (espProvider.autoRefresh) ...[
-                  const Divider(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Interval Polling',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary,
-                        ),
-                      ),
-                      DropdownButton<int>(
-                        value: espProvider.pollInterval,
-                        underline: const SizedBox.shrink(),
-                        dropdownColor: isDark
-                            ? AppColors.darkSurface
-                            : Colors.white,
-                        items: const [
-                          DropdownMenuItem(value: 2, child: Text('2 Detik')),
-                          DropdownMenuItem(value: 3, child: Text('3 Detik')),
-                          DropdownMenuItem(value: 5, child: Text('5 Detik')),
-                          DropdownMenuItem(value: 10, child: Text('10 Detik')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            espProvider.setPollInterval(val);
-                          }
-                        },
-                      ),
-                    ],
                   ),
                 ],
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          // Section 6: Device & App Info
-          _buildSectionHeader(
-            icon: Icons.info_outline_rounded,
-            title: 'Tentang Aplikasi',
-            isDark: isDark,
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
               ),
             ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Image.asset(
-                    'assets/icons/ico.png',
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: AppColors.teal,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.device_hub_rounded,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'R-Sync Relay Controller',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Versi $_appVersion',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? AppColors.darkTextMuted
-                              : AppColors.lightTextMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Smart Relay & Servo Wall Switch Automation System',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.teal,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 40),
-        ],
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }
@@ -964,6 +1025,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool isDark,
   }) {
     final isSelected = currentActiveLow == isActiveLowOption;
+    final accent = isActiveLowOption ? AppColors.teal : AppColors.orange;
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -973,11 +1035,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.teal.withValues(alpha: 0.15)
+              ? accent.withValues(alpha: isDark ? 0.2 : 0.12)
               : (isDark ? AppColors.darkSurface : Colors.grey.shade100),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.teal : Colors.transparent,
+            color: isSelected
+                ? AppColors.themedBorder(accent, Theme.of(context).brightness)
+                : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
             width: 1.5,
           ),
         ),
@@ -986,7 +1050,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Icon(
               icon,
               color: isSelected
-                  ? AppColors.teal
+                  ? accent
                   : (isDark
                         ? AppColors.darkTextSecondary
                         : Colors.grey.shade600),
@@ -999,7 +1063,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
-                    ? AppColors.teal
+                    ? accent
                     : (isDark
                           ? AppColors.darkTextSecondary
                           : Colors.grey.shade700),
