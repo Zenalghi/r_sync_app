@@ -18,6 +18,12 @@ class EspStatus {
   final int restAngle;
   final int pressAngle;
   final int pressDurationMs;
+  final List<int>
+  servoAngles; // Current angles for servos 0..5 (-1 if unknown/detached)
+  final int servoQueueLength; // Pending movements in FIFO queue
+  final bool servoBusy; // True if a servo is actively moving or testing
+  final int servoRailMv; // Servo rail voltage reading (mV)
+  final int servoRailMinMv; // Lowest observed rail voltage reading (mV)
   final List<TimerJob> timers;
   final List<ScheduleJob> schedules; // New: global schedule list
 
@@ -35,6 +41,11 @@ class EspStatus {
     this.restAngle = 90,
     this.pressAngle = 0,
     this.pressDurationMs = 400,
+    this.servoAngles = const [-1, -1, -1, -1, -1, -1],
+    this.servoQueueLength = 0,
+    this.servoBusy = false,
+    this.servoRailMv = 0,
+    this.servoRailMinMv = 0,
     required this.timers,
     required this.schedules,
   });
@@ -54,6 +65,11 @@ class EspStatus {
       restAngle: 90,
       pressAngle: 0,
       pressDurationMs: 400,
+      servoAngles: [-1, -1, -1, -1, -1, -1],
+      servoQueueLength: 0,
+      servoBusy: false,
+      servoRailMv: 0,
+      servoRailMinMv: 0,
       timers: [],
       schedules: [],
     );
@@ -121,6 +137,14 @@ class EspStatus {
           .toList();
     }
 
+    // Parse servo angles
+    List<int> servoAngleList = [-1, -1, -1, -1, -1, -1];
+    if (json['servoAngles'] is List) {
+      servoAngleList = (json['servoAngles'] as List<dynamic>)
+          .map((e) => (e as num?)?.toInt() ?? -1)
+          .toList();
+    }
+
     return EspStatus(
       ip: json['ip'] as String? ?? '',
       wifi: json['wifi'] as String? ?? 'Disconnected',
@@ -131,10 +155,17 @@ class EspStatus {
       switchActive: switchActiveList,
       displayPage: json['displayPage'] as int? ?? 0,
       activeLow: json['activeLow'] as bool? ?? true,
-      oledConnected: json['oledConnected'] as bool? ?? false,
+      oledConnected: (json['oledConnected'] as bool?) ??
+          (json['oled_connected'] as bool?) ??
+          false,
       restAngle: json['restAngle'] as int? ?? 90,
       pressAngle: json['pressAngle'] as int? ?? 0,
       pressDurationMs: json['pressDurationMs'] as int? ?? 400,
+      servoAngles: servoAngleList,
+      servoQueueLength: json['servoQueueLength'] as int? ?? 0,
+      servoBusy: json['servoBusy'] as bool? ?? false,
+      servoRailMv: json['servoRailMv'] as int? ?? 0,
+      servoRailMinMv: json['servoRailMinMv'] as int? ?? 0,
       timers: timerList,
       schedules: scheduleList,
     );
@@ -196,6 +227,11 @@ class EspStatus {
     int? restAngle,
     int? pressAngle,
     int? pressDurationMs,
+    List<int>? servoAngles,
+    int? servoQueueLength,
+    bool? servoBusy,
+    int? servoRailMv,
+    int? servoRailMinMv,
     List<TimerJob>? timers,
     List<ScheduleJob>? schedules,
   }) {
@@ -213,6 +249,11 @@ class EspStatus {
       restAngle: restAngle ?? this.restAngle,
       pressAngle: pressAngle ?? this.pressAngle,
       pressDurationMs: pressDurationMs ?? this.pressDurationMs,
+      servoAngles: servoAngles ?? this.servoAngles,
+      servoQueueLength: servoQueueLength ?? this.servoQueueLength,
+      servoBusy: servoBusy ?? this.servoBusy,
+      servoRailMv: servoRailMv ?? this.servoRailMv,
+      servoRailMinMv: servoRailMinMv ?? this.servoRailMinMv,
       timers: timers ?? this.timers,
       schedules: schedules ?? this.schedules,
     );

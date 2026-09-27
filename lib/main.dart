@@ -1,3 +1,6 @@
+import 'dart:io' as io;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -50,6 +53,12 @@ class RSyncApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
+      builder: (context, child) {
+        if (!kIsWeb && io.Platform.isWindows) {
+          return ExcludeSemantics(child: child!);
+        }
+        return child!;
+      },
       home: const MainScreen(),
     );
   }

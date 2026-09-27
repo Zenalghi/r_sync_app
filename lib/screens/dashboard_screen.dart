@@ -192,93 +192,106 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  Divider(
-                    height: 1,
-                    color: isDark
-                        ? AppColors.darkBorder
-                        : AppColors.lightBorder,
-                  ),
-                  const SizedBox(height: 12),
+                  if (espProvider.isOledConnected) ...[
+                    const SizedBox(height: 14),
+                    Divider(
+                      height: 1,
+                      color: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.lightBorder,
+                    ),
+                    const SizedBox(height: 12),
 
-                  // OLED Display Controller Row
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.orange.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.smart_display_rounded,
-                          size: 18,
-                          color: AppColors.orange,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'LAYAR OLED FISIK ESP32',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.6,
-                                color: isDark
-                                    ? AppColors.darkTextMuted
-                                    : AppColors.lightTextMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Halaman OLED #${status.displayPage + 1}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: isDark
-                                    ? AppColors.darkTextPrimary
-                                    : AppColors.lightTextPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.tonalIcon(
-                        onPressed: isConnected
-                            ? () => espProvider.setDisplayPage(
-                                (status.displayPage + 1) % 4,
-                              )
-                            : null,
-                        icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                        label: const Text(
-                          'Ganti Hal',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          foregroundColor: AppColors.orange,
-                          backgroundColor: AppColors.orange.withValues(
-                            alpha: 0.12,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
+                    // OLED Display Controller Row
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.orange.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          child: const Icon(
+                            Icons.smart_display_rounded,
+                            size: 18,
+                            color: AppColors.orange,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'LAYAR OLED FISIK ESP32',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.6,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.lightTextMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                () {
+                                  switch (status.displayPage) {
+                                    case 0:
+                                      return 'Hal 1: Status Perangkat';
+                                    case 1:
+                                      return 'Hal 2: Jadwal Otomatis';
+                                    case 2:
+                                      return 'Hal 3: Daftar Timer';
+                                    default:
+                                      return 'Halaman OLED #${status.displayPage + 1}';
+                                  }
+                                }(),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? AppColors.darkTextPrimary
+                                      : AppColors.lightTextPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: isConnected
+                              ? () => espProvider.setDisplayPage(
+                                  (status.displayPage + 1) % 3,
+                                )
+                              : null,
+                          icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                          label: const Text(
+                            'Ganti Hal',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            foregroundColor: AppColors.orange,
+                            backgroundColor: AppColors.orange.withValues(
+                              alpha: 0.12,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -426,8 +439,49 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              // Live Servo Busy / Queue Banner
+              if (status.servoBusy || status.servoQueueLength > 0) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.indigo.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColors.indigo.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.indigo,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          status.servoBusy
+                              ? 'Servo sedang bergerak...'
+                              : 'Antrean servo: ${status.servoQueueLength} gerakan',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.indigo,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
-
               // Dynamic Switch Cards
               ListView.separated(
                 shrinkWrap: true,

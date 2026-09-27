@@ -2,7 +2,8 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 
 import '../models/esp_capabilities.dart';
 import '../models/esp_status.dart';
@@ -29,14 +30,14 @@ class EspProvider extends ChangeNotifier {
     _autoRefresh = _storageService.getAutoRefresh();
     _pollInterval = _storageService.getPollInterval();
 
-    // Load cached capabilities from SharedPreferences on app startup
-    _loadCachedCapabilities();
-
-    // Initial fetch
-    refreshStatus();
-    if (_autoRefresh) {
-      _startPolling();
-    }
+    // Defer initial cache loading and status fetch to after the widget tree completes its initial build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCachedCapabilities();
+      refreshStatus();
+      if (_autoRefresh) {
+        _startPolling();
+      }
+    });
   }
 
   String get espIp => _espIp;
@@ -48,12 +49,28 @@ class EspProvider extends ChangeNotifier {
   bool get autoRefresh => _autoRefresh;
   int get pollInterval => _pollInterval;
   String? get relayPolarityError => _relayPolarityError;
+  bool get isServoBusy => _status.servoBusy;
+  int get servoQueueLength => _status.servoQueueLength;
+  List<int> get servoAngles => _status.servoAngles;
+  bool get isOledConnected =>
+      _isConnected && (_status.oledConnected || _capabilities.oledConnected);
+
+  void _safeNotifyListeners() {
+    if (WidgetsBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
+    } else {
+      notifyListeners();
+    }
+  }
 
   Future<void> _loadCachedCapabilities() async {
     final cached = await EspCapabilities.loadFromLocal();
     if (cached != null) {
       _capabilities = cached;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -63,7 +80,7 @@ class EspProvider extends ChangeNotifier {
 
     _espIp = cleanIp;
     await _storageService.setEspIp(cleanIp);
-    notifyListeners();
+    _safeNotifyListeners();
 
     await refreshStatus();
   }
@@ -72,7 +89,7 @@ class EspProvider extends ChangeNotifier {
     if (_isLoading) return;
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final newCaps = await _apiService.getCapabilities(_espIp);
@@ -87,7 +104,7 @@ class EspProvider extends ChangeNotifier {
       _errorMessage = e.toString();
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -100,21 +117,21 @@ class EspProvider extends ChangeNotifier {
       updatedRelays[channel - 1] = targetState;
     }
     _status = _status.copyWith(relays: updatedRelays);
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final success = await _apiService.setRelay(_espIp, channel, targetState);
       if (!success) {
         updatedRelays[channel - 1] = currentState;
         _status = _status.copyWith(relays: updatedRelays);
-        notifyListeners();
+        _safeNotifyListeners();
         return false;
       }
       return true;
     } catch (e) {
       updatedRelays[channel - 1] = currentState;
       _status = _status.copyWith(relays: updatedRelays);
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
   }
@@ -125,7 +142,7 @@ class EspProvider extends ChangeNotifier {
       updatedSwitches[switchIdx] = turnOn;
     }
     _status = _status.copyWith(switches: updatedSwitches);
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       return await _apiService.setSwitch(_espIp, switchIdx, turnOn);
@@ -160,7 +177,7 @@ class EspProvider extends ChangeNotifier {
         pressAngle: pressAngle,
         pressDurationMs: pressDurationMs,
       );
-      notifyListeners();
+      _safeNotifyListeners();
     }
     return success;
   }
@@ -202,6 +219,16 @@ class EspProvider extends ChangeNotifier {
     return _apiService.resetWifi(_espIp);
   }
 
+  /// Fetch hardware active config from ESP32
+  Future<Map<String, List<bool>>?> fetchHardwareConfig() async {
+    return _apiService.getHardwareConfig(_espIp);
+  }
+
+  /// Fetch relay polarity directly from ESP32
+  Future<bool?> fetchRelayPolarity() async {
+    return _apiService.getRelayPolarity(_espIp);
+  }
+
   /// Set hardware active/inactive flags (relay/switch enable per-channel)
   Future<bool> setHardwareConfig({
     required List<bool> relays,
@@ -229,7 +256,7 @@ class EspProvider extends ChangeNotifier {
         activeSwitches: switches,
       );
       await _capabilities.saveToLocal();
-      notifyListeners();
+      _safeNotifyListeners();
       // Refresh to get updated status
       await _silentRefresh();
     }
@@ -246,7 +273,7 @@ class EspProvider extends ChangeNotifier {
     } else {
       _stopPolling();
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   Future<void> setPollInterval(int seconds) async {
@@ -258,7 +285,7 @@ class EspProvider extends ChangeNotifier {
       _stopPolling();
       _startPolling();
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void _startPolling() {
@@ -279,11 +306,11 @@ class EspProvider extends ChangeNotifier {
       _status = newStatus;
       _isConnected = true;
       _errorMessage = null;
-      notifyListeners();
+      _safeNotifyListeners();
     } catch (_) {
       if (_isConnected) {
         _isConnected = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -292,7 +319,7 @@ class EspProvider extends ChangeNotifier {
     final updatedPage = await _apiService.setDisplayPage(_espIp, page);
     if (updatedPage != null) {
       _status = _status.copyWith(displayPage: updatedPage);
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
     }
     return false;
@@ -303,11 +330,11 @@ class EspProvider extends ChangeNotifier {
     if (success) {
       _relayPolarityError = null;
       _status = _status.copyWith(activeLow: activeLow);
-      notifyListeners();
+      _safeNotifyListeners();
       await _silentRefresh();
     } else {
       _relayPolarityError = _apiService.relayPolarityError;
-      notifyListeners();
+      _safeNotifyListeners();
     }
     return success;
   }

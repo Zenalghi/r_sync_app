@@ -31,6 +31,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late int _pressDurationMs;
   bool _isSavingServoConfig = false;
   bool _isRefreshingSettings = false;
+  List<bool> _activeRelays = [true, true, true, true];
+  List<bool> _activeSwitches = [true, true, true];
+  bool _isSavingHwConfig = false;
 
   @override
   void initState() {
@@ -40,6 +43,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _restAngle = espProvider.status.restAngle;
     _pressAngle = espProvider.status.pressAngle;
     _pressDurationMs = espProvider.status.pressDurationMs;
+    _activeRelays = List<bool>.from(espProvider.capabilities.activeRelays);
+    _activeSwitches = List<bool>.from(espProvider.capabilities.activeSwitches);
     _loadAppVersion();
   }
 
@@ -47,7 +52,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void didUpdateWidget(covariant SettingsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.refreshToken != oldWidget.refreshToken) {
-      _refreshSettingsFromEsp();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _refreshSettingsFromEsp();
+        }
+      });
     }
   }
 
@@ -64,12 +73,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _syncServoConfigFromStatus() {
     if (!mounted) return;
-    final status = context.read<EspProvider>().status;
+    final espProvider = context.read<EspProvider>();
+    final status = espProvider.status;
+    final caps = espProvider.capabilities;
     setState(() {
       _restAngle = status.restAngle;
       _pressAngle = status.pressAngle;
       _pressDurationMs = status.pressDurationMs;
+      _activeRelays = List<bool>.from(caps.activeRelays);
+      _activeSwitches = List<bool>.from(caps.activeSwitches);
     });
+  }
+
+  Future<void> _saveHardwareConfig() async {
+    setState(() => _isSavingHwConfig = true);
+    final espProvider = context.read<EspProvider>();
+    final success = await espProvider.setHardwareConfig(
+      relays: _activeRelays,
+      switches: _activeSwitches,
+    );
+    if (mounted) {
+      setState(() => _isSavingHwConfig = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Konfigurasi Port Hardware Berhasil Disimpan!'
+                : 'Gagal menyimpan konfigurasi hardware ke ESP32.',
+          ),
+          backgroundColor: success ? AppColors.teal : AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _loadAppVersion() async {
@@ -731,6 +767,146 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // Section 3: Hardware Active/Inactive Ports
+            _buildSectionHeader(
+              icon: Icons.developer_board_rounded,
+              title: 'Port Hardware Aktif (Relay & Saklar)',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.themedBorder(
+                    AppColors.teal,
+                    Theme.of(context).brightness,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'PORT RELAY AKTIF',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: List.generate(4, (i) {
+                      final isActive =
+                          i < _activeRelays.length && _activeRelays[i];
+                      return FilterChip(
+                        label: Text('Relay ${i + 1}'),
+                        selected: isActive,
+                        selectedColor: AppColors.teal.withValues(alpha: 0.2),
+                        checkmarkColor: AppColors.teal,
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isActive
+                              ? AppColors.teal
+                              : (isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted),
+                        ),
+                        onSelected: (val) {
+                          setState(() {
+                            if (i < _activeRelays.length) {
+                              _activeRelays[i] = val;
+                            }
+                          });
+                        },
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'PORT SAKLAR SWITCH AKTIF (SERVO)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: List.generate(3, (i) {
+                      final names = ['A', 'B', 'C'];
+                      final name = i < names.length ? names[i] : '${i + 1}';
+                      final isActive =
+                          i < _activeSwitches.length && _activeSwitches[i];
+                      return FilterChip(
+                        label: Text('Switch $name'),
+                        selected: isActive,
+                        selectedColor: AppColors.indigo.withValues(alpha: 0.2),
+                        checkmarkColor: AppColors.indigo,
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isActive
+                              ? AppColors.indigo
+                              : (isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted),
+                        ),
+                        onSelected: (val) {
+                          setState(() {
+                            if (i < _activeSwitches.length) {
+                              _activeSwitches[i] = val;
+                            }
+                          });
+                        },
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: espProvider.isConnected && !_isSavingHwConfig
+                        ? _saveHardwareConfig
+                        : null,
+                    icon: _isSavingHwConfig
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.save_rounded, size: 18),
+                    label: const Text('Simpan Konfigurasi Port'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.teal,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ],
               ),

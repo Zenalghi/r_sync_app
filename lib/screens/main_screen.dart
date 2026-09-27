@@ -54,10 +54,28 @@ class _MainScreenState extends State<MainScreen> {
     final isConnected = espProvider.isConnected;
 
     final screens = [
-      DashboardScreen(onNavigateToSettings: () => _selectTab(3)),
-      const TimerScreen(),
-      const SchedulerScreen(),
-      SettingsScreen(refreshToken: _settingsRefreshToken),
+      ExcludeSemantics(
+        excluding: _currentIndex != 0,
+        child: DashboardScreen(
+          key: const ValueKey('tab_dashboard'),
+          onNavigateToSettings: () => _selectTab(3),
+        ),
+      ),
+      ExcludeSemantics(
+        excluding: _currentIndex != 1,
+        child: const TimerScreen(key: ValueKey('tab_timer')),
+      ),
+      ExcludeSemantics(
+        excluding: _currentIndex != 2,
+        child: const SchedulerScreen(key: ValueKey('tab_scheduler')),
+      ),
+      ExcludeSemantics(
+        excluding: _currentIndex != 3,
+        child: SettingsScreen(
+          key: const ValueKey('tab_settings'),
+          refreshToken: _settingsRefreshToken,
+        ),
+      ),
     ];
 
     return LayoutBuilder(
@@ -116,6 +134,7 @@ class _MainScreenState extends State<MainScreen> {
                 ),
               ),
               IconButton(
+                key: ValueKey('refresh_btn_$_currentIndex'),
                 icon: espProvider.isLoading
                     ? const SizedBox(
                         width: 18,

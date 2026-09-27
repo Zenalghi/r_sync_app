@@ -71,7 +71,9 @@ class EspCapabilities {
       schedulerFeature: json['scheduler_feature'] as bool? ?? true,
       maxSchedules: maxSched,
       servoConfigFeature: json['servo_config_feature'] as bool? ?? true,
-      oledConnected: json['oled_connected'] as bool? ?? false,
+      oledConnected: (json['oled_connected'] as bool?) ??
+          (json['oledConnected'] as bool?) ??
+          false,
       activeRelays: activeRelayList,
       activeSwitches: activeSwitchList,
     );

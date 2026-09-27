@@ -607,22 +607,38 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
 
           // Schedule list
           Expanded(
-            child: schedules.isEmpty
-                ? _buildEmptyState(isDark)
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 80),
-                    itemCount: schedules.length,
-                    itemBuilder: (ctx, index) {
-                      return _buildScheduleCard(
-                        context,
-                        isDark,
-                        espProvider,
-                        scheduleProvider,
-                        index,
-                        schedules[index],
-                      );
-                    },
-                  ),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await Future.wait([
+                  espProvider.refreshStatus(),
+                  scheduleProvider.fetchSchedulesFromEsp(espProvider.espIp),
+                ]);
+              },
+              color: AppColors.teal,
+              child: schedules.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        child: _buildEmptyState(isDark),
+                      ),
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 80),
+                      itemCount: schedules.length,
+                      itemBuilder: (ctx, index) {
+                        return _buildScheduleCard(
+                          context,
+                          isDark,
+                          espProvider,
+                          scheduleProvider,
+                          index,
+                          schedules[index],
+                        );
+                      },
+                    ),
+            ),
           ),
         ],
       ),

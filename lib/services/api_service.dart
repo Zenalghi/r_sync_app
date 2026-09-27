@@ -222,6 +222,42 @@ class ApiService {
     }
   }
 
+  /// Fetches schedules directly via `GET /api/schedules`
+  Future<List<ScheduleJob>> getSchedules(
+    String ip, {
+    int relayCount = 4,
+    int switchCount = 3,
+  }) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/schedules');
+
+    try {
+      final response = await _client
+          .get(uri, headers: const {'Accept': 'application/json, */*'})
+          .timeout(defaultTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data
+              .map(
+                (item) => ScheduleJob.fromJson(
+                  item as Map<String, dynamic>,
+                  relayCount: relayCount,
+                  switchCount: switchCount,
+                ),
+              )
+              .where((j) => j.enabled || j.hour != 0 || j.minute != 0)
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('ApiService getSchedules error: $e');
+      return [];
+    }
+  }
+
   /// Sends full schedule list via `POST /api/schedules` (v3.0.0 global format)
   Future<bool> saveAllSchedules(
     String ip,
@@ -305,7 +341,30 @@ class ApiService {
     }
   }
 
-  /// Sets relay active polarity
+  /// Gets current relay active polarity via `GET /api/relay/polarity`
+  Future<bool?> getRelayPolarity(String ip) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/relay/polarity');
+
+    try {
+      final response = await _client
+          .get(uri, headers: const {'Accept': 'application/json, */*'})
+          .timeout(defaultTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map && data['activeLow'] != null) {
+          return data['activeLow'] as bool;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('ApiService getRelayPolarity error: $e');
+      return null;
+    }
+  }
+
+  /// Sets relay active polarity via `POST /api/relay/polarity`
   Future<bool> setRelayPolarity(String ip, bool activeLow) async {
     _relayPolarityError = null;
     final baseUrl = _formatBaseUrl(ip);
@@ -325,6 +384,39 @@ class ApiService {
       _relayPolarityError = e.toString();
       debugPrint('ApiService setRelayPolarity error: $e');
       return false;
+    }
+  }
+
+  /// Gets hardware active/inactive flags via `GET /api/hardware/config`
+  Future<Map<String, List<bool>>?> getHardwareConfig(String ip) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/hardware/config');
+
+    try {
+      final response = await _client
+          .get(uri, headers: const {'Accept': 'application/json, */*'})
+          .timeout(defaultTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map) {
+          final relays =
+              (data['relays'] as List<dynamic>?)
+                  ?.map((e) => e as bool)
+                  .toList() ??
+              [];
+          final switches =
+              (data['switches'] as List<dynamic>?)
+                  ?.map((e) => e as bool)
+                  .toList() ??
+              [];
+          return {'relays': relays, 'switches': switches};
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('ApiService getHardwareConfig error: $e');
+      return null;
     }
   }
 

@@ -424,13 +424,6 @@ class _TimerScreenState extends State<TimerScreen> {
     final timers = espProvider.status.timers;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Timer Pewaktu',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        centerTitle: false,
-      ),
       body: timers.isEmpty
           ? Center(
               child: Column(

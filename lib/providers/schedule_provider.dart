@@ -1,6 +1,7 @@
 // lib/providers/schedule_provider.dart
 
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,13 +31,25 @@ class ScheduleProvider extends ChangeNotifier {
     if (_espProvider == espProvider) return;
     _espProvider?.removeListener(_onEspStatusChanged);
     _espProvider = espProvider;
-    _bindEspProvider();
+    _espProvider?.addListener(_onEspStatusChanged);
+
+    final espSchedules = espProvider.status.schedules;
+    if (espSchedules.isNotEmpty && !_isSaving) {
+      _schedules = List<ScheduleJob>.from(espSchedules)
+        ..sort((a, b) => a.totalMinutes.compareTo(b.totalMinutes));
+      _saveLocalCache();
+    }
   }
 
   void _bindEspProvider() {
     if (_espProvider == null) return;
     _espProvider!.addListener(_onEspStatusChanged);
-    _onEspStatusChanged();
+    final espSchedules = _espProvider!.status.schedules;
+    if (espSchedules.isNotEmpty && !_isSaving) {
+      _schedules = List<ScheduleJob>.from(espSchedules)
+        ..sort((a, b) => a.totalMinutes.compareTo(b.totalMinutes));
+      _saveLocalCache();
+    }
   }
 
   void _onEspStatusChanged() {
@@ -46,7 +59,9 @@ class ScheduleProvider extends ChangeNotifier {
       _schedules = List<ScheduleJob>.from(espSchedules)
         ..sort((a, b) => a.totalMinutes.compareTo(b.totalMinutes));
       _saveLocalCache();
-      notifyListeners();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
     }
   }
 
@@ -57,14 +72,19 @@ class ScheduleProvider extends ChangeNotifier {
       final jsonStr = prefs.getString(_localCacheKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final List<dynamic> list = jsonDecode(jsonStr);
-        final loaded = list
-            .map((item) => ScheduleJob.fromJson(item as Map<String, dynamic>))
-            .where((j) => j.enabled || j.hour != 0 || j.minute != 0)
-            .toList()
-          ..sort((a, b) => a.totalMinutes.compareTo(b.totalMinutes));
+        final loaded =
+            list
+                .map(
+                  (item) => ScheduleJob.fromJson(item as Map<String, dynamic>),
+                )
+                .where((j) => j.enabled || j.hour != 0 || j.minute != 0)
+                .toList()
+              ..sort((a, b) => a.totalMinutes.compareTo(b.totalMinutes));
         if (loaded.isNotEmpty && _schedules.isEmpty) {
           _schedules = loaded;
-          notifyListeners();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            notifyListeners();
+          });
         }
       }
     } catch (_) {}
@@ -84,6 +104,21 @@ class ScheduleProvider extends ChangeNotifier {
   List<ScheduleJob> get schedules => List.unmodifiable(_schedules);
   int get count => _schedules.length;
   bool get canAdd => _schedules.length < maxSchedules;
+
+  /// Fetch schedules directly via GET /api/schedules
+  Future<void> fetchSchedulesFromEsp(String espIp) async {
+    try {
+      final list = await _apiService.getSchedules(espIp);
+      if (list.isNotEmpty || _schedules.isNotEmpty) {
+        _schedules = list
+          ..sort((a, b) => a.totalMinutes.compareTo(b.totalMinutes));
+        await _saveLocalCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('ScheduleProvider fetchSchedulesFromEsp error: $e');
+    }
+  }
 
   Future<bool> addSchedule({
     required String espIp,
