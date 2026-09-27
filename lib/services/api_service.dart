@@ -177,7 +177,102 @@ class ApiService {
     }
   }
 
-  /// Adds countdown timer via `POST /api/timer/add`
+  /// Unified timer management via `POST /api/timer`
+  /// Handles: 'add', 'update', 'delete', 'start', 'pause', 'resume', 'cancel'
+  Future<bool> manageTimer(
+    String ip, {
+    required String action,
+    int? id,
+    int? durationSec,
+    bool? invertOnStartEnd,
+    String? targetAction,
+    List<bool>? targetRelays,
+    List<bool>? targetSwitches,
+  }) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/timer');
+    final payload = <String, dynamic>{'action': action};
+    if (id != null) payload['id'] = id;
+    if (durationSec != null) payload['durationSec'] = durationSec;
+    if (invertOnStartEnd != null) payload['invertOnStartEnd'] = invertOnStartEnd;
+    if (targetAction != null) payload['targetAction'] = targetAction;
+    if (targetRelays != null) payload['targetRelays'] = targetRelays;
+    if (targetSwitches != null) payload['targetSwitches'] = targetSwitches;
+
+    try {
+      final response = await _client
+          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
+          .timeout(defaultTimeout);
+      if (response.statusCode == 200) return true;
+    } catch (_) {}
+
+    // Fallbacks for older firmware versions on board
+    if (action == 'add') {
+      try {
+        final addUri = Uri.parse('$baseUrl/api/timer/add');
+        final response = await _client
+            .post(addUri, headers: _postHeaders, body: jsonEncode(payload))
+            .timeout(defaultTimeout);
+        return response.statusCode == 200;
+      } catch (_) {
+        return false;
+      }
+    } else if (action == 'update') {
+      // 1. Try legacy /api/timer/update
+      try {
+        final updateUri = Uri.parse('$baseUrl/api/timer/update');
+        final response = await _client
+            .post(updateUri, headers: _postHeaders, body: jsonEncode(payload))
+            .timeout(defaultTimeout);
+        if (response.statusCode == 200) return true;
+      } catch (_) {}
+
+      // 2. Graceful fallback if ESP32 hasn't been flashed with update endpoint:
+      // Remove old timer and re-add updated timer so edit still works immediately!
+      if (id != null) {
+        await controlTimer(ip, id, 'remove');
+        return addTimer(
+          ip,
+          durationSec: durationSec ?? 0,
+          invertOnStartEnd: invertOnStartEnd ?? false,
+          targetAction: targetAction ?? 'ON',
+          targetRelays: targetRelays ?? const [],
+          targetSwitches: targetSwitches ?? const [],
+        );
+      }
+    } else if (action == 'delete' || action == 'remove') {
+      try {
+        final controlUri = Uri.parse('$baseUrl/api/timer/control');
+        final response = await _client
+            .post(
+              controlUri,
+              headers: _postHeaders,
+              body: jsonEncode({'id': id, 'command': 'remove'}),
+            )
+            .timeout(defaultTimeout);
+        return response.statusCode == 200;
+      } catch (_) {
+        return false;
+      }
+    } else {
+      try {
+        final controlUri = Uri.parse('$baseUrl/api/timer/control');
+        final response = await _client
+            .post(
+              controlUri,
+              headers: _postHeaders,
+              body: jsonEncode({'id': id, 'command': action}),
+            )
+            .timeout(defaultTimeout);
+        return response.statusCode == 200;
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /// Adds countdown timer via unified `POST /api/timer`
   Future<bool> addTimer(
     String ip, {
     required int durationSec,
@@ -185,42 +280,43 @@ class ApiService {
     required String targetAction,
     required List<bool> targetRelays,
     required List<bool> targetSwitches,
-  }) async {
-    final baseUrl = _formatBaseUrl(ip);
-    final uri = Uri.parse('$baseUrl/api/timer/add');
-    final payload = {
-      'durationSec': durationSec,
-      'invertOnStartEnd': invertOnStartEnd,
-      'targetAction': targetAction,
-      'targetRelays': targetRelays,
-      'targetSwitches': targetSwitches,
-    };
+  }) => manageTimer(
+    ip,
+    action: 'add',
+    durationSec: durationSec,
+    invertOnStartEnd: invertOnStartEnd,
+    targetAction: targetAction,
+    targetRelays: targetRelays,
+    targetSwitches: targetSwitches,
+  );
 
-    try {
-      final response = await _client
-          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
-          .timeout(defaultTimeout);
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
+  /// Updates existing countdown timer via unified `POST /api/timer`
+  Future<bool> updateTimer(
+    String ip, {
+    required int id,
+    required int durationSec,
+    required bool invertOnStartEnd,
+    required String targetAction,
+    required List<bool> targetRelays,
+    required List<bool> targetSwitches,
+  }) => manageTimer(
+    ip,
+    action: 'update',
+    id: id,
+    durationSec: durationSec,
+    invertOnStartEnd: invertOnStartEnd,
+    targetAction: targetAction,
+    targetRelays: targetRelays,
+    targetSwitches: targetSwitches,
+  );
 
-  /// Controls active timer (pause, resume, cancel) via `POST /api/timer/control`
-  Future<bool> controlTimer(String ip, int timerId, String command) async {
-    final baseUrl = _formatBaseUrl(ip);
-    final uri = Uri.parse('$baseUrl/api/timer/control');
-    final payload = {'id': timerId, 'command': command};
+  /// Controls active timer via unified `POST /api/timer` (with fallback to `/api/timer/control`)
+  Future<bool> controlTimer(String ip, int timerId, String command) =>
+      manageTimer(ip, action: command, id: timerId);
 
-    try {
-      final response = await _client
-          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
-          .timeout(defaultTimeout);
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
+  /// Deletes timer via unified `POST /api/timer`
+  Future<bool> deleteTimer(String ip, int timerId) =>
+      manageTimer(ip, action: 'delete', id: timerId);
 
   /// Fetches schedules directly via `GET /api/schedules`
   Future<List<ScheduleJob>> getSchedules(

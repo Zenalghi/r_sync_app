@@ -203,8 +203,39 @@ class EspProvider extends ChangeNotifier {
     return success;
   }
 
+  Future<bool> updateTimer({
+    required int id,
+    required int durationSec,
+    required bool invertOnStartEnd,
+    required String targetAction,
+    required List<bool> targetRelays,
+    required List<bool> targetSwitches,
+  }) async {
+    final success = await _apiService.updateTimer(
+      _espIp,
+      id: id,
+      durationSec: durationSec,
+      invertOnStartEnd: invertOnStartEnd,
+      targetAction: targetAction,
+      targetRelays: targetRelays,
+      targetSwitches: targetSwitches,
+    );
+    if (success) {
+      await _silentRefresh();
+    }
+    return success;
+  }
+
   Future<bool> controlTimer(int timerId, String command) async {
     final success = await _apiService.controlTimer(_espIp, timerId, command);
+    if (success) {
+      await _silentRefresh();
+    }
+    return success;
+  }
+
+  Future<bool> deleteTimer(int timerId) async {
+    final success = await _apiService.deleteTimer(_espIp, timerId);
     if (success) {
       await _silentRefresh();
     }

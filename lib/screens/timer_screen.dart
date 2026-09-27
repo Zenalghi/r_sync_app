@@ -16,19 +16,29 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen> {
-  void _showAddTimerDialog(BuildContext context) {
+  void _showTimerDialog(BuildContext context, {TimerJob? existing}) {
     final espProvider = context.read<EspProvider>();
     final caps = espProvider.capabilities;
 
-    int hours = 0;
-    int minutes = 5;
-    int seconds = 0;
-    String targetAction = 'ON';
-    bool invertOnStartEnd = true;
+    int hours = existing != null ? existing.totalDurationSec ~/ 3600 : 0;
+    int minutes =
+        existing != null ? (existing.totalDurationSec % 3600) ~/ 60 : 5;
+    int seconds = existing != null ? existing.totalDurationSec % 60 : 0;
+    String targetAction = existing?.targetAction ?? 'ON';
+    bool invertOnStartEnd = existing?.invertOnStartEnd ?? true;
 
-    final List<bool> selectedRelays = List.filled(caps.relaysCount, false);
-    final List<bool> selectedSwitches = List.filled(caps.switchesCount, false);
-    if (selectedRelays.isNotEmpty) selectedRelays[0] = true;
+    final List<bool> selectedRelays = List.generate(
+      caps.relaysCount,
+      (i) => existing != null && i < existing.targetRelays.length
+          ? existing.targetRelays[i]
+          : (existing == null && i == 0),
+    );
+    final List<bool> selectedSwitches = List.generate(
+      caps.switchesCount,
+      (i) => existing != null && i < existing.targetSwitches.length
+          ? existing.targetSwitches[i]
+          : false,
+    );
 
     showModalBottomSheet(
       context: context,
@@ -72,10 +82,17 @@ class _TimerScreenState extends State<TimerScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Icon(Icons.timer_rounded, color: AppColors.teal),
+                        Icon(
+                          existing == null
+                              ? Icons.timer_rounded
+                              : Icons.edit_rounded,
+                          color: AppColors.teal,
+                        ),
                         const SizedBox(width: 8),
                         Text(
-                          'Tambah Timer Baru',
+                          existing == null
+                              ? 'Tambah Timer Baru'
+                              : 'Edit Timer #${existing.id}',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -379,20 +396,36 @@ class _TimerScreenState extends State<TimerScreen> {
                                 return;
                               }
                               Navigator.pop(ctx);
-                              final ok = await espProvider.addTimer(
-                                durationSec: totalSec,
-                                invertOnStartEnd: invertOnStartEnd,
-                                targetAction: targetAction,
-                                targetRelays: selectedRelays,
-                                targetSwitches: selectedSwitches,
-                              );
+                              final bool ok;
+                              if (existing == null) {
+                                ok = await espProvider.addTimer(
+                                  durationSec: totalSec,
+                                  invertOnStartEnd: invertOnStartEnd,
+                                  targetAction: targetAction,
+                                  targetRelays: selectedRelays,
+                                  targetSwitches: selectedSwitches,
+                                );
+                              } else {
+                                ok = await espProvider.updateTimer(
+                                  id: existing.id,
+                                  durationSec: totalSec,
+                                  invertOnStartEnd: invertOnStartEnd,
+                                  targetAction: targetAction,
+                                  targetRelays: selectedRelays,
+                                  targetSwitches: selectedSwitches,
+                                );
+                              }
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       ok
-                                          ? 'Timer berhasil dibuat'
-                                          : 'Gagal membuat timer',
+                                          ? (existing == null
+                                              ? 'Timer berhasil dibuat'
+                                              : 'Timer berhasil diperbarui')
+                                          : (existing == null
+                                              ? 'Gagal membuat timer'
+                                              : 'Gagal memperbarui timer'),
                                     ),
                                   ),
                                 );
@@ -401,8 +434,15 @@ class _TimerScreenState extends State<TimerScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.teal,
                               foregroundColor: Colors.white,
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                            child: const Text('Mulai Timer'),
+                            child: Text(
+                              existing == null
+                                  ? 'Mulai Timer'
+                                  : 'Simpan Perubahan',
+                            ),
                           ),
                         ),
                       ],
@@ -422,59 +462,167 @@ class _TimerScreenState extends State<TimerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final espProvider = context.watch<EspProvider>();
     final timers = espProvider.status.timers;
+    final caps = espProvider.capabilities;
+    final maxTimers = caps.maxTimers > 0 ? caps.maxTimers : 10;
+    final canAdd = timers.length < maxTimers;
 
     return Scaffold(
-      body: timers.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.timer_off_rounded,
-                    size: 64,
-                    color: isDark
-                        ? AppColors.darkTextMuted
-                        : AppColors.lightTextMuted,
+      body: Column(
+        children: [
+          // Capacity bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 16,
+                      color: AppColors.teal,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Pewaktu Otomatis',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.teal,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Belum Ada Timer',
+                  decoration: BoxDecoration(
+                    color: !canAdd
+                        ? AppColors.warning.withValues(alpha: 0.15)
+                        : AppColors.teal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${timers.length} / $maxTimers Slot',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
+                      color: !canAdd ? AppColors.warning : AppColors.teal,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Tekan tombol + di bawah untuk membuat timer baru.\nTimer yang sudah selesai dapat disimpan & dijalankan ulang.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: timers.length,
-              itemBuilder: (context, index) {
-                final timer = timers[index];
-                return _buildTimerCard(context, espProvider, timer);
-              },
+                ),
+              ],
             ),
+          ),
+
+          // Timer list
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => espProvider.refreshStatus(),
+              color: AppColors.teal,
+              child: timers.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        child: _buildEmptyState(context, isDark),
+                      ),
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                      itemCount: timers.length,
+                      itemBuilder: (context, index) {
+                        final timer = timers[index];
+                        return _buildTimerCard(context, espProvider, timer);
+                      },
+                    ),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddTimerDialog(context),
-        backgroundColor: AppColors.teal,
-        foregroundColor: Colors.white,
+        onPressed: canAdd ? () => _showTimerDialog(context) : null,
+        backgroundColor: canAdd
+            ? AppColors.teal
+            : (isDark ? AppColors.darkCard : Colors.grey.shade300),
+        foregroundColor: canAdd ? Colors.white : Colors.grey.shade500,
+        elevation: canAdd ? 4 : 0,
         icon: const Icon(Icons.add_alarm_rounded),
-        label: const Text('Timer Baru'),
+        label: Text(
+          canAdd ? 'Timer Baru' : 'Slot Penuh ($maxTimers/$maxTimers)',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.teal.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.timer_outlined,
+                size: 40,
+                color: AppColors.teal,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Belum Ada Timer',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.lightTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Buat timer hitung mundur untuk relay atau saklar. Timer yang selesai akan tersimpan dalam riwayat dan dapat dijalankan ulang.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _showTimerDialog(context),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text(
+                'Buat Timer Baru',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.teal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -677,7 +825,20 @@ class _TimerScreenState extends State<TimerScreen> {
             children: [
               if (isFinished) ...[
                 TextButton.icon(
-                  onPressed: () => espProvider.controlTimer(timer.id, 'remove'),
+                  onPressed: () => _showTimerDialog(context, existing: timer),
+                  icon: const Icon(Icons.edit_rounded, size: 16),
+                  label: const Text('Edit'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.teal,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                TextButton.icon(
+                  onPressed: () => espProvider.deleteTimer(timer.id),
                   icon: const Icon(Icons.delete_outline_rounded, size: 16),
                   label: const Text('Hapus'),
                   style: TextButton.styleFrom(
@@ -706,6 +867,19 @@ class _TimerScreenState extends State<TimerScreen> {
                   ),
                 ),
               ] else if (isPaused) ...[
+                TextButton.icon(
+                  onPressed: () => _showTimerDialog(context, existing: timer),
+                  icon: const Icon(Icons.edit_rounded, size: 16),
+                  label: const Text('Edit'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.teal,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 TextButton.icon(
                   onPressed: () => espProvider.controlTimer(timer.id, 'cancel'),
                   icon: const Icon(Icons.stop_rounded, size: 18),
@@ -736,6 +910,19 @@ class _TimerScreenState extends State<TimerScreen> {
                   ),
                 ),
               ] else ...[
+                TextButton.icon(
+                  onPressed: () => _showTimerDialog(context, existing: timer),
+                  icon: const Icon(Icons.edit_rounded, size: 16),
+                  label: const Text('Edit'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.teal,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 TextButton.icon(
                   onPressed: () => espProvider.controlTimer(timer.id, 'cancel'),
                   icon: const Icon(Icons.stop_rounded, size: 18),

@@ -874,13 +874,19 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
             ElevatedButton.icon(
               onPressed: () => _showScheduleDialog(),
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Tambah Jadwal Pertama'),
+              label: const Text(
+                'Tambah Jadwal Pertama',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.teal,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
