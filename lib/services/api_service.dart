@@ -139,12 +139,17 @@ class ApiService {
   }
 
   /// Triggers servo self test via `POST /api/servo/test`
-  Future<bool> triggerServoTest(String ip) async {
+  /// If [servoIdx] is provided (0..5), runs test for that single servo only.
+  Future<bool> triggerServoTest(String ip, {int? servoIdx}) async {
     final baseUrl = _formatBaseUrl(ip);
     final uri = Uri.parse('$baseUrl/api/servo/test');
     try {
       final response = await _client
-          .post(uri, headers: _postHeaders)
+          .post(
+            uri,
+            headers: _postHeaders,
+            body: servoIdx != null ? jsonEncode({'servo': servoIdx}) : null,
+          )
           .timeout(defaultTimeout);
       return response.statusCode == 200;
     } catch (e) {
@@ -158,14 +163,18 @@ class ApiService {
     required int restAngle,
     required int pressAngle,
     required int pressDurationMs,
+    List<int>? pressAngles,
   }) async {
     final baseUrl = _formatBaseUrl(ip);
     final uri = Uri.parse('$baseUrl/api/servo/config');
-    final payload = {
+    final payload = <String, dynamic>{
       'restAngle': restAngle,
       'pressAngle': pressAngle,
       'pressDurationMs': pressDurationMs,
     };
+    if (pressAngles != null) {
+      payload['pressAngles'] = pressAngles;
+    }
 
     try {
       final response = await _client

@@ -156,25 +156,28 @@ class EspProvider extends ChangeNotifier {
     return triggerSwitchAction(switchIdx, !currentState);
   }
 
-  Future<bool> triggerServoTest() async {
-    return _apiService.triggerServoTest(_espIp);
+  Future<bool> triggerServoTest({int? servoIdx}) async {
+    return _apiService.triggerServoTest(_espIp, servoIdx: servoIdx);
   }
 
   Future<bool> setServoConfig({
     required int restAngle,
     required int pressAngle,
     required int pressDurationMs,
+    List<int>? pressAngles,
   }) async {
     final success = await _apiService.setServoConfig(
       _espIp,
       restAngle: restAngle,
       pressAngle: pressAngle,
       pressDurationMs: pressDurationMs,
+      pressAngles: pressAngles,
     );
     if (success) {
       _status = _status.copyWith(
         restAngle: restAngle,
         pressAngle: pressAngle,
+        pressAngles: pressAngles,
         pressDurationMs: pressDurationMs,
       );
       _safeNotifyListeners();

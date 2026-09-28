@@ -17,6 +17,7 @@ class EspStatus {
   final bool oledConnected; // New: OLED status from ESP
   final int restAngle;
   final int pressAngle;
+  final List<int> pressAngles;
   final int pressDurationMs;
   final List<int>
   servoAngles; // Current angles for servos 0..5 (-1 if unknown/detached)
@@ -40,6 +41,7 @@ class EspStatus {
     this.oledConnected = false,
     this.restAngle = 90,
     this.pressAngle = 0,
+    this.pressAngles = const [0, 0, 0, 0, 0, 0],
     this.pressDurationMs = 400,
     this.servoAngles = const [-1, -1, -1, -1, -1, -1],
     this.servoQueueLength = 0,
@@ -64,6 +66,7 @@ class EspStatus {
       oledConnected: false,
       restAngle: 90,
       pressAngle: 0,
+      pressAngles: [0, 0, 0, 0, 0, 0],
       pressDurationMs: 400,
       servoAngles: [-1, -1, -1, -1, -1, -1],
       servoQueueLength: 0,
@@ -160,6 +163,10 @@ class EspStatus {
           false,
       restAngle: json['restAngle'] as int? ?? 90,
       pressAngle: json['pressAngle'] as int? ?? 0,
+      pressAngles: (json['pressAngles'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList() ??
+          List<int>.filled(6, json['pressAngle'] as int? ?? 0),
       pressDurationMs: json['pressDurationMs'] as int? ?? 400,
       servoAngles: servoAngleList,
       servoQueueLength: json['servoQueueLength'] as int? ?? 0,
@@ -226,6 +233,7 @@ class EspStatus {
     bool? oledConnected,
     int? restAngle,
     int? pressAngle,
+    List<int>? pressAngles,
     int? pressDurationMs,
     List<int>? servoAngles,
     int? servoQueueLength,
@@ -248,6 +256,7 @@ class EspStatus {
       oledConnected: oledConnected ?? this.oledConnected,
       restAngle: restAngle ?? this.restAngle,
       pressAngle: pressAngle ?? this.pressAngle,
+      pressAngles: pressAngles ?? this.pressAngles,
       pressDurationMs: pressDurationMs ?? this.pressDurationMs,
       servoAngles: servoAngles ?? this.servoAngles,
       servoQueueLength: servoQueueLength ?? this.servoQueueLength,

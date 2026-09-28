@@ -28,7 +28,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _appVersion = '1.0.0';
   late int _restAngle;
   late int _pressAngle;
+  late List<int> _pressAngles;
   late int _pressDurationMs;
+  int _selectedSwitchTab = 0;
   bool _isSavingServoConfig = false;
   bool _isRefreshingSettings = false;
   List<bool> _activeRelays = [true, true, true, true];
@@ -42,6 +44,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _ipController = TextEditingController(text: espProvider.espIp);
     _restAngle = espProvider.status.restAngle;
     _pressAngle = espProvider.status.pressAngle;
+    _pressAngles = List<int>.from(espProvider.status.pressAngles);
+    while (_pressAngles.length < 6) {
+      _pressAngles.add(_pressAngle);
+    }
     _pressDurationMs = espProvider.status.pressDurationMs;
     _activeRelays = List<bool>.from(espProvider.capabilities.activeRelays);
     _activeSwitches = List<bool>.from(espProvider.capabilities.activeSwitches);
@@ -79,6 +85,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _restAngle = status.restAngle;
       _pressAngle = status.pressAngle;
+      _pressAngles = List<int>.from(status.pressAngles);
+      while (_pressAngles.length < 6) {
+        _pressAngles.add(_pressAngle);
+      }
       _pressDurationMs = status.pressDurationMs;
       _activeRelays = List<bool>.from(caps.activeRelays);
       _activeSwitches = List<bool>.from(caps.activeSwitches);
@@ -187,6 +197,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       restAngle: _restAngle,
       pressAngle: _pressAngle,
       pressDurationMs: _pressDurationMs,
+      pressAngles: _pressAngles,
     );
     if (mounted) {
       setState(() => _isSavingServoConfig = false);
@@ -194,7 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: Text(
             success
-                ? 'Kalibrasi Servo Berhasil Disimpan di ESP32!'
+                ? 'Kalibrasi 6 Servo Berhasil Disimpan di ESP32!'
                 : 'Gagal menyimpan kalibrasi servo.',
           ),
           backgroundColor: success ? AppColors.teal : AppColors.error,
@@ -791,12 +802,292 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Rest Angle Slider
+                    // Switch Selection Tabs
+                    Row(
+                      children: List.generate(caps.switchesCount, (idx) {
+                        final isSelected = _selectedSwitchTab == idx;
+                        return Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              right: idx < caps.switchesCount - 1 ? 8.0 : 0.0,
+                            ),
+                            child: InkWell(
+                              onTap: () => setState(() => _selectedSwitchTab = idx),
+                              borderRadius: BorderRadius.circular(12),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.teal.withValues(alpha: 0.18)
+                                      : (isDark
+                                          ? Colors.white.withValues(alpha: 0.04)
+                                          : Colors.black.withValues(alpha: 0.03)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.teal
+                                        : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Saklar ${idx + 1}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? AppColors.teal
+                                          : (isDark
+                                              ? AppColors.darkTextSecondary
+                                              : AppColors.lightTextSecondary),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Active Switch Servo Pair (ON & OFF)
+                    Builder(
+                      builder: (ctx) {
+                        final sw = _selectedSwitchTab.clamp(0, caps.switchesCount - 1);
+                        final servoOnIdx = sw * 2;
+                        final servoOffIdx = sw * 2 + 1;
+                        final gpioPins = const [14, 27, 26, 25, 33, 32];
+                        final pinOn = servoOnIdx < gpioPins.length ? gpioPins[servoOnIdx] : 0;
+                        final pinOff = servoOffIdx < gpioPins.length ? gpioPins[servoOffIdx] : 0;
+                        final onAngle = _pressAngles.length > servoOnIdx ? _pressAngles[servoOnIdx] : _pressAngle;
+                        final offAngle = _pressAngles.length > servoOffIdx ? _pressAngles[servoOffIdx] : _pressAngle;
+
+                        return Column(
+                          children: [
+                            // Servo ON Card
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.03)
+                                    : AppColors.teal.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: AppColors.teal.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.teal.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Text(
+                                              'SERVO ON',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.teal,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'GPIO $pinOn',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark
+                                                  ? AppColors.darkTextMuted
+                                                  : AppColors.lightTextMuted,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '$onAngle°',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.teal,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          SizedBox(
+                                            height: 28,
+                                            child: OutlinedButton(
+                                              onPressed: espProvider.isConnected
+                                                  ? () => espProvider.triggerServoTest(servoIdx: servoOnIdx)
+                                                  : null,
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: AppColors.teal,
+                                                side: const BorderSide(color: AppColors.teal),
+                                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                              child: const Text('Tes ON', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  Slider(
+                                    value: onAngle.toDouble(),
+                                    min: 0,
+                                    max: 180,
+                                    divisions: 180,
+                                    activeColor: AppColors.teal,
+                                    label: '$onAngle°',
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _pressAngles[servoOnIdx] = val.round();
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // Servo OFF Card
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.03)
+                                    : AppColors.orange.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: AppColors.orange.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.orange.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Text(
+                                              'SERVO OFF',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.orange,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'GPIO $pinOff',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark
+                                                  ? AppColors.darkTextMuted
+                                                  : AppColors.lightTextMuted,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '$offAngle°',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.orange,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          SizedBox(
+                                            height: 28,
+                                            child: OutlinedButton(
+                                              onPressed: espProvider.isConnected
+                                                  ? () => espProvider.triggerServoTest(servoIdx: servoOffIdx)
+                                                  : null,
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: AppColors.orange,
+                                                side: const BorderSide(color: AppColors.orange),
+                                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                              child: const Text('Tes OFF', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  Slider(
+                                    value: offAngle.toDouble(),
+                                    min: 0,
+                                    max: 180,
+                                    divisions: 180,
+                                    activeColor: AppColors.orange,
+                                    label: '$offAngle°',
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _pressAngles[servoOffIdx] = val.round();
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 18),
+                    const Divider(height: 1),
+                    const SizedBox(height: 14),
+
+                    // Global Rest Angle Slider
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Rest Angle (Posisi Netral):',
+                          'Rest Angle (Posisi Netral Standby):',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -821,40 +1112,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: '$_restAngle°',
                       onChanged: (val) =>
                           setState(() => _restAngle = val.round()),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Press Angle Slider
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Press Angle (Posisi Menekan Switch):',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '$_pressAngle°',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Slider(
-                      value: _pressAngle.toDouble(),
-                      min: 0,
-                      max: 180,
-                      divisions: 180,
-                      activeColor: AppColors.orange,
-                      label: '$_pressAngle°',
-                      onChanged: (val) =>
-                          setState(() => _pressAngle = val.round()),
                     ),
 
                     const SizedBox(height: 10),
@@ -904,7 +1161,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Icons.play_arrow_rounded,
                               size: 18,
                             ),
-                            label: const Text('Tes Servo'),
+                            label: const Text('Tes Semua'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.teal,
                               side: const BorderSide(color: AppColors.teal),
