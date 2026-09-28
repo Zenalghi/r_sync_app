@@ -31,64 +31,6 @@ class DashboardScreen extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20),
           children: [
-            // Connection alert banner if offline
-            if (!isConnected)
-              Container(
-                margin: const EdgeInsets.only(bottom: 20),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.error.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.cloud_off_rounded,
-                      color: AppColors.error,
-                      size: 26,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'ESP32 Tidak Terhubung',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.error,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Pastikan smartphone terhubung ke Wi-Fi ESP32 atau atur IP di Pengaturan.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: onNavigateToSettings,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                      ),
-                      child: const Text('Pengaturan'),
-                    ),
-                  ],
-                ),
-              ),
-
             // ESP32 Hardware Status Card
             Container(
               padding: const EdgeInsets.all(18),
@@ -97,7 +39,7 @@ class DashboardScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: AppColors.themedBorder(
-                    AppColors.indigo,
+                    isConnected ? AppColors.teal : AppColors.indigo,
                     Theme.of(context).brightness,
                   ),
                 ),
@@ -118,11 +60,15 @@ class DashboardScreen extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            Icons.memory_rounded,
+                            isConnected
+                                ? Icons.memory_rounded
+                                : Icons.wifi_off_rounded,
                             size: 20,
-                            color: isDark
-                                ? AppColors.tealLight
-                                : AppColors.teal,
+                            color: isConnected
+                                ? (isDark
+                                      ? AppColors.tealLight
+                                      : AppColors.teal)
+                                : AppColors.orange,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -145,6 +91,47 @@ class DashboardScreen extends StatelessWidget {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: AppColors.teal,
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                (isConnected
+                                        ? AppColors.emerald
+                                        : AppColors.orange)
+                                    .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isConnected
+                                      ? AppColors.emerald
+                                      : AppColors.orange,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isConnected ? 'Terhubung' : 'Belum Konek',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isConnected
+                                      ? AppColors.emerald
+                                      : AppColors.orange,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                     ],
@@ -170,7 +157,7 @@ class DashboardScreen extends StatelessWidget {
                           context: context,
                           icon: Icons.wifi_rounded,
                           label: 'Status Wi-Fi',
-                          value: isConnected ? status.wifi : 'Offline',
+                          value: isConnected ? status.wifi : 'Terputus',
                           color: isConnected
                               ? AppColors.emerald
                               : AppColors.error,
@@ -186,7 +173,7 @@ class DashboardScreen extends StatelessWidget {
                               ? (status.time.split(' ').length > 1
                                     ? status.time.split(' ')[1]
                                     : status.time)
-                              : 'Syncing...',
+                              : '-',
                           color: AppColors.indigo,
                         ),
                       ),
@@ -260,11 +247,9 @@ class DashboardScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         FilledButton.tonalIcon(
-                          onPressed: isConnected
-                              ? () => espProvider.setDisplayPage(
-                                  (status.displayPage + 1) % 3,
-                                )
-                              : null,
+                          onPressed: () => espProvider.setDisplayPage(
+                            (status.displayPage + 1) % 3,
+                          ),
                           icon: const Icon(Icons.swap_horiz_rounded, size: 16),
                           label: const Text(
                             'Ganti Hal',
@@ -296,222 +281,521 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 24),
-
-            // Section: Relay Channels
-            if (caps.relaysCount > 0) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Kontrol Relay (${caps.relaysCount})',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.lightTextPrimary,
-                      ),
-                    ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildCompactAction(
-                        icon: Icons.flash_on_rounded,
-                        label: 'Semua ON',
-                        color: AppColors.teal,
-                        onPressed: isConnected
-                            ? () async {
-                                for (int r = 1; r <= caps.relaysCount; r++) {
-                                  if (!status.getRelayState(r)) {
-                                    await espProvider.toggleRelay(r);
-                                  }
-                                }
-                              }
-                            : null,
-                      ),
-                      const SizedBox(width: 6),
-                      _buildCompactAction(
-                        icon: Icons.flash_off_rounded,
-                        label: 'Semua OFF',
-                        color: AppColors.orange,
-                        onPressed: isConnected
-                            ? () async {
-                                for (int r = 1; r <= caps.relaysCount; r++) {
-                                  if (status.getRelayState(r)) {
-                                    await espProvider.toggleRelay(r);
-                                  }
-                                }
-                              }
-                            : null,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Dynamic Relay Cards
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: caps.relaysCount,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final ch = index + 1;
-                  return RelayCard(
-                    channel: ch,
-                    title: 'Relay $ch',
-                    subtitle: 'Beban relay channel $ch',
-                    isOn: status.getRelayState(ch),
-                    isConnected: isConnected,
-                    nextJob: status.getNextActiveJobForRelay(ch),
-                    onToggle: () => espProvider.toggleRelay(ch),
-                  );
-                },
-              ),
+            // Disconnected State: Onboarding Guide
+            if (!isConnected) ...[
+              _buildDisconnectedOnboarding(context, isDark, espProvider),
+            ] else ...[
+              // Connected State: Dynamically show only ACTIVE hardware
               const SizedBox(height: 24),
-            ],
 
-            // Section: Wall Switches (Servos)
-            if (caps.switchesCount > 0) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Switch Servo (${caps.switchesCount})',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.lightTextPrimary,
-                      ),
-                    ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+              // Section: Relay Channels
+              if (caps.relaysCount > 0) ...[
+                () {
+                  final activeRelays = caps.activeRelayChannels;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildCompactAction(
-                        icon: Icons.build_rounded,
-                        label: 'Tes',
-                        color: AppColors.indigo,
-                        onPressed: isConnected
-                            ? () => espProvider.triggerServoTest()
-                            : null,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Kontrol Relay (${activeRelays.length})',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.lightTextPrimary,
+                              ),
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildCompactAction(
+                                icon: Icons.flash_on_rounded,
+                                label: 'Semua ON',
+                                color: AppColors.teal,
+                                onPressed: () async {
+                                  for (final r in activeRelays) {
+                                    if (!status.getRelayState(r)) {
+                                      await espProvider.toggleRelay(r);
+                                    }
+                                  }
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                              _buildCompactAction(
+                                icon: Icons.flash_off_rounded,
+                                label: 'Semua OFF',
+                                color: AppColors.orange,
+                                onPressed: () async {
+                                  for (final r in activeRelays) {
+                                    if (status.getRelayState(r)) {
+                                      await espProvider.toggleRelay(r);
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      _buildCompactAction(
-                        icon: Icons.flash_on_rounded,
-                        label: 'Semua ON',
-                        color: AppColors.teal,
-                        onPressed: isConnected
-                            ? () async {
-                                for (int s = 0; s < caps.switchesCount; s++) {
-                                  await espProvider.triggerSwitchAction(
-                                    s,
-                                    true,
-                                  );
-                                }
-                              }
-                            : null,
+                      const SizedBox(height: 14),
+
+                      // Dynamic Active Relay Cards
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: activeRelays.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final ch = activeRelays[index];
+                          return RelayCard(
+                            channel: ch,
+                            title: 'Relay $ch',
+                            subtitle: 'Beban relay channel $ch',
+                            isOn: status.getRelayState(ch),
+                            isConnected: isConnected,
+                            nextJob: status.getNextActiveJobForRelay(ch),
+                            onToggle: () => espProvider.toggleRelay(ch),
+                          );
+                        },
                       ),
-                      const SizedBox(width: 6),
-                      _buildCompactAction(
-                        icon: Icons.flash_off_rounded,
-                        label: 'Semua OFF',
-                        color: AppColors.orange,
-                        onPressed: isConnected
-                            ? () async {
-                                for (int s = 0; s < caps.switchesCount; s++) {
-                                  await espProvider.triggerSwitchAction(
-                                    s,
-                                    false,
-                                  );
-                                }
-                              }
-                            : null,
-                      ),
+                      const SizedBox(height: 24),
                     ],
-                  ),
-                ],
-              ),
-              // Live Servo Busy / Queue Banner
-              if (status.servoBusy || status.servoQueueLength > 0) ...[
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.indigo.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppColors.indigo.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
+                  );
+                }(),
+              ],
+
+              // Section: Wall Switches (Servos)
+              if (caps.switchesCount > 0) ...[
+                () {
+                  final activeSwitches = caps.activeSwitchIndices;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.indigo,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Switch Servo (${activeSwitches.length})',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.lightTextPrimary,
+                              ),
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildCompactAction(
+                                icon: Icons.build_rounded,
+                                label: 'Tes',
+                                color: AppColors.indigo,
+                                onPressed: () => espProvider.triggerServoTest(),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildCompactAction(
+                                icon: Icons.flash_on_rounded,
+                                label: 'Semua ON',
+                                color: AppColors.teal,
+                                onPressed: () async {
+                                  for (final s in activeSwitches) {
+                                    await espProvider.triggerSwitchAction(
+                                      s,
+                                      true,
+                                    );
+                                  }
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                              _buildCompactAction(
+                                icon: Icons.flash_off_rounded,
+                                label: 'Semua OFF',
+                                color: AppColors.orange,
+                                onPressed: () async {
+                                  for (final s in activeSwitches) {
+                                    await espProvider.triggerSwitchAction(
+                                      s,
+                                      false,
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          status.servoBusy
-                              ? 'Servo sedang bergerak...'
-                              : 'Antrean servo: ${status.servoQueueLength} gerakan',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.indigo,
+                      // Live Servo Busy / Queue Banner
+                      if (status.servoBusy || status.servoQueueLength > 0) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.indigo.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: AppColors.indigo.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.indigo,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  status.servoBusy
+                                      ? 'Servo sedang bergerak...'
+                                      : 'Antrean servo: ${status.servoQueueLength} gerakan',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.indigo,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      ],
+                      const SizedBox(height: 14),
+                      // Dynamic Switch Cards
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: activeSwitches.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final sIdx = activeSwitches[index];
+                          final names = ['A', 'B', 'C'];
+                          final swName = sIdx < names.length
+                              ? names[sIdx]
+                              : '${sIdx + 1}';
+                          return WallSwitchCard(
+                            switchIdx: sIdx,
+                            title: 'Switch $swName',
+                            subtitle: '2 Servo (ON/OFF)',
+                            isConnected: isConnected,
+                            onPressOn: () =>
+                                espProvider.triggerSwitchAction(sIdx, true),
+                            onPressOff: () =>
+                                espProvider.triggerSwitchAction(sIdx, false),
+                          );
+                        },
                       ),
+                      const SizedBox(height: 24),
                     ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 14),
-              // Dynamic Switch Cards
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: caps.switchesCount,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final names = ['A', 'B', 'C'];
-                  final swName = index < names.length
-                      ? names[index]
-                      : '${index + 1}';
-                  return WallSwitchCard(
-                    switchIdx: index,
-                    title: 'Switch $swName',
-                    subtitle: '2 Servo (ON/OFF)',
-                    isConnected: isConnected,
-                    onPressOn: () =>
-                        espProvider.triggerSwitchAction(index, true),
-                    onPressOff: () =>
-                        espProvider.triggerSwitchAction(index, false),
                   );
-                },
-              ),
-              const SizedBox(height: 24),
+                }(),
+              ],
+
+              // Connected but 0 active hardware
+              if (caps.relaysCount == 0 && caps.switchesCount == 0) ...[
+                _buildNoActiveHardwareBanner(context, isDark),
+              ],
             ],
           ],
         ),
       ),
     );
   }
+
+  Widget _buildDisconnectedOnboarding(
+    BuildContext context,
+    bool isDark,
+    EspProvider espProvider,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.themedBorder(
+            AppColors.teal,
+            Theme.of(context).brightness,
+          ),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Visual Icon Badge
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.teal.withValues(alpha: 0.2),
+                  AppColors.indigo.withValues(alpha: 0.15),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.teal.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+            ),
+            child: const Icon(
+              Icons.sensors_off_rounded,
+              color: AppColors.teal,
+              size: 34,
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          Text(
+            'ESP32 Belum Terhubung',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          Text(
+            'Aplikasi siap mengontrol Relay, Saklar Tembok, dan Layar OLED. Hubungkan smartphone ke jaringan ESP32 untuk mendeteksi perangkat secara otomatis.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 3-Step Quick Guide
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? AppColors.darkBackground
+                  : AppColors.lightBackground,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              ),
+            ),
+            child: Column(
+              children: [
+                _buildGuideStep(
+                  isDark: isDark,
+                  stepNumber: '1',
+                  text: 'Nyalakan modul hardware ESP32 Anda.',
+                ),
+                const SizedBox(height: 10),
+                _buildGuideStep(
+                  isDark: isDark,
+                  stepNumber: '2',
+                  text:
+                      'Sambungkan Wi-Fi smartphone ke Access Point "R-Sync" atau router lokal yang sama.',
+                ),
+                const SizedBox(height: 10),
+                _buildGuideStep(
+                  isDark: isDark,
+                  stepNumber: '3',
+                  text:
+                      'Buka menu Pengaturan untuk memeriksa atau menyesuaikan alamat IP (default: 192.168.4.1).',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+
+          // CTAs
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: onNavigateToSettings,
+                  icon: const Icon(Icons.settings_ethernet_rounded, size: 18),
+                  label: const Text(
+                    'Atur Koneksi',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () => espProvider.refreshStatus(),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text(
+                  'Coba Lagi',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.teal,
+                  side: const BorderSide(color: AppColors.teal),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 13,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoActiveHardwareBanner(BuildContext context, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.themedBorder(
+            AppColors.orange,
+            Theme.of(context).brightness,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.power_off_rounded,
+            color: AppColors.orange,
+            size: 36,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Tidak Ada Port Hardware Aktif',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Semua port Relay dan Saklar dinonaktifkan di konfigurasi hardware. Aktifkan port yang Anda gunakan di menu Pengaturan.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: onNavigateToSettings,
+            icon: const Icon(Icons.tune_rounded, size: 16),
+            label: const Text(
+              'Buka Pengaturan Port',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.teal,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuideStep({
+    required bool isDark,
+    required String stepNumber,
+    required String text,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.teal.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            stepNumber,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.teal,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
 
   Widget _buildCompactAction({
     required IconData icon,

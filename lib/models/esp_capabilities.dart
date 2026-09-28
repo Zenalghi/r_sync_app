@@ -128,6 +128,24 @@ class EspCapabilities {
     return activeSwitches[index];
   }
 
+  /// List of 1-based channel numbers for active relays
+  List<int> get activeRelayChannels {
+    final list = <int>[];
+    for (int i = 0; i < activeRelays.length; i++) {
+      if (activeRelays[i]) list.add(i + 1);
+    }
+    return list;
+  }
+
+  /// List of 0-based indices for active switches
+  List<int> get activeSwitchIndices {
+    final list = <int>[];
+    for (int i = 0; i < activeSwitches.length; i++) {
+      if (activeSwitches[i]) list.add(i);
+    }
+    return list;
+  }
+
   /// Whether there is at least one active relay
   bool get hasAnyRelay => relaysCount > 0;
 

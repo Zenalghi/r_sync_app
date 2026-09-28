@@ -509,10 +509,266 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
 
+            if (!espProvider.isConnected) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.orange.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: AppColors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Hubungkan smartphone ke ESP32 untuk membuka pengaturan Port Hardware, Polaritas Relay, dan Kalibrasi Servo.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 28),
 
-            // Section: Servo Calibration (Rest & Press Angle)
-            if (caps.switchesCount > 0) ...[
+            // Section: Port Hardware Aktif (Relay & Saklar) - Only visible when connected
+            if (espProvider.isConnected) ...[
+              _buildSectionHeader(
+                icon: Icons.developer_board_rounded,
+                title: 'Port Hardware Aktif (Relay & Saklar)',
+                isDark: isDark,
+              ),
+              const SizedBox(height: 12),
+
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.themedBorder(
+                      AppColors.teal,
+                      Theme.of(context).brightness,
+                    ),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PORT RELAY AKTIF',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: List.generate(4, (i) {
+                        final isActive =
+                            i < _activeRelays.length && _activeRelays[i];
+                        return FilterChip(
+                          label: Text('Relay ${i + 1}'),
+                          selected: isActive,
+                          selectedColor: AppColors.teal.withValues(alpha: 0.2),
+                          checkmarkColor: AppColors.teal,
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isActive
+                                ? AppColors.teal
+                                : (isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.lightTextMuted),
+                          ),
+                          onSelected: (val) {
+                            setState(() {
+                              if (i < _activeRelays.length) {
+                                _activeRelays[i] = val;
+                              }
+                            });
+                          },
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'PORT SAKLAR SWITCH AKTIF (SERVO)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: List.generate(3, (i) {
+                        final names = ['A', 'B', 'C'];
+                        final name = i < names.length ? names[i] : '${i + 1}';
+                        final isActive =
+                            i < _activeSwitches.length && _activeSwitches[i];
+                        return FilterChip(
+                          label: Text('Switch $name'),
+                          selected: isActive,
+                          selectedColor: AppColors.indigo.withValues(alpha: 0.2),
+                          checkmarkColor: AppColors.indigo,
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isActive
+                                ? AppColors.indigo
+                                : (isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.lightTextMuted),
+                          ),
+                          onSelected: (val) {
+                            setState(() {
+                              if (i < _activeSwitches.length) {
+                                _activeSwitches[i] = val;
+                              }
+                            });
+                          },
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: espProvider.isConnected && !_isSavingHwConfig
+                          ? _saveHardwareConfig
+                          : null,
+                      icon: _isSavingHwConfig
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save_rounded, size: 18),
+                      label: const Text('Simpan Konfigurasi Port'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.teal,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+            ],
+
+            // Section: Relay Hardware Polarity Control - Only visible when connected AND has active relays
+            if (espProvider.isConnected && caps.relaysCount > 0) ...[
+              _buildSectionHeader(
+                icon: Icons.electric_bolt_rounded,
+                title: 'Konfigurasi Polaritas Relay',
+                isDark: isDark,
+              ),
+              const SizedBox(height: 12),
+
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.themedBorder(
+                      AppColors.orange,
+                      Theme.of(context).brightness,
+                    ),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'LOGIKA TRIGGER HARDWARE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.lightTextMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildPolarityOption(
+                            title: 'Active LOW',
+                            subtitle: 'ON = LOW (0V)\nOFF = HIGH (3.3V)',
+                            icon: Icons.arrow_downward_rounded,
+                            isActiveLowOption: true,
+                            currentActiveLow: espProvider.status.activeLow,
+                            onTap: espProvider.isConnected
+                                ? () => _confirmChangePolarity(true)
+                                : null,
+                            isDark: isDark,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildPolarityOption(
+                            title: 'Active HIGH',
+                            subtitle: 'ON = HIGH (3.3V)\nOFF = LOW (0V)',
+                            icon: Icons.arrow_upward_rounded,
+                            isActiveLowOption: false,
+                            currentActiveLow: espProvider.status.activeLow,
+                            onTap: espProvider.isConnected
+                                ? () => _confirmChangePolarity(false)
+                                : null,
+                            isDark: isDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+            ],
+
+            // Section: Servo Calibration (Rest & Press Angle) - Only visible when connected AND has active switches
+            if (espProvider.isConnected && caps.switchesCount > 0) ...[
               _buildSectionHeader(
                 icon: Icons.tune_rounded,
                 title: 'Kalibrasi Sudut Servo Switch',
@@ -695,222 +951,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 28),
             ],
-
-            // Section 2: Relay Hardware Polarity Control
-            _buildSectionHeader(
-              icon: Icons.electric_bolt_rounded,
-              title: 'Konfigurasi Polaritas Relay',
-              isDark: isDark,
-            ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkCard : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: AppColors.themedBorder(
-                    AppColors.orange,
-                    Theme.of(context).brightness,
-                  ),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'LOGIKA TRIGGER HARDWARE',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                          color: isDark
-                              ? AppColors.darkTextMuted
-                              : AppColors.lightTextMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildPolarityOption(
-                          title: 'Active LOW',
-                          subtitle: 'ON = LOW (0V)\nOFF = HIGH (3.3V)',
-                          icon: Icons.arrow_downward_rounded,
-                          isActiveLowOption: true,
-                          currentActiveLow: espProvider.status.activeLow,
-                          onTap: espProvider.isConnected
-                              ? () => _confirmChangePolarity(true)
-                              : null,
-                          isDark: isDark,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildPolarityOption(
-                          title: 'Active HIGH',
-                          subtitle: 'ON = HIGH (3.3V)\nOFF = LOW (0V)',
-                          icon: Icons.arrow_upward_rounded,
-                          isActiveLowOption: false,
-                          currentActiveLow: espProvider.status.activeLow,
-                          onTap: espProvider.isConnected
-                              ? () => _confirmChangePolarity(false)
-                              : null,
-                          isDark: isDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // Section 3: Hardware Active/Inactive Ports
-            _buildSectionHeader(
-              icon: Icons.developer_board_rounded,
-              title: 'Port Hardware Aktif (Relay & Saklar)',
-              isDark: isDark,
-            ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkCard : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: AppColors.themedBorder(
-                    AppColors.teal,
-                    Theme.of(context).brightness,
-                  ),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'PORT RELAY AKTIF',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: isDark
-                          ? AppColors.darkTextMuted
-                          : AppColors.lightTextMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: List.generate(4, (i) {
-                      final isActive =
-                          i < _activeRelays.length && _activeRelays[i];
-                      return FilterChip(
-                        label: Text('Relay ${i + 1}'),
-                        selected: isActive,
-                        selectedColor: AppColors.teal.withValues(alpha: 0.2),
-                        checkmarkColor: AppColors.teal,
-                        labelStyle: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isActive
-                              ? AppColors.teal
-                              : (isDark
-                                    ? AppColors.darkTextMuted
-                                    : AppColors.lightTextMuted),
-                        ),
-                        onSelected: (val) {
-                          setState(() {
-                            if (i < _activeRelays.length) {
-                              _activeRelays[i] = val;
-                            }
-                          });
-                        },
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'PORT SAKLAR SWITCH AKTIF (SERVO)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: isDark
-                          ? AppColors.darkTextMuted
-                          : AppColors.lightTextMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: List.generate(3, (i) {
-                      final names = ['A', 'B', 'C'];
-                      final name = i < names.length ? names[i] : '${i + 1}';
-                      final isActive =
-                          i < _activeSwitches.length && _activeSwitches[i];
-                      return FilterChip(
-                        label: Text('Switch $name'),
-                        selected: isActive,
-                        selectedColor: AppColors.indigo.withValues(alpha: 0.2),
-                        checkmarkColor: AppColors.indigo,
-                        labelStyle: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isActive
-                              ? AppColors.indigo
-                              : (isDark
-                                    ? AppColors.darkTextMuted
-                                    : AppColors.lightTextMuted),
-                        ),
-                        onSelected: (val) {
-                          setState(() {
-                            if (i < _activeSwitches.length) {
-                              _activeSwitches[i] = val;
-                            }
-                          });
-                        },
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: espProvider.isConnected && !_isSavingHwConfig
-                        ? _saveHardwareConfig
-                        : null,
-                    icon: _isSavingHwConfig
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.save_rounded, size: 18),
-                    label: const Text('Simpan Konfigurasi Port'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.teal,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
             const SizedBox(height: 28),
 
