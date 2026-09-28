@@ -21,8 +21,9 @@ class _TimerScreenState extends State<TimerScreen> {
     final caps = espProvider.capabilities;
 
     int hours = existing != null ? existing.totalDurationSec ~/ 3600 : 0;
-    int minutes =
-        existing != null ? (existing.totalDurationSec % 3600) ~/ 60 : 5;
+    int minutes = existing != null
+        ? (existing.totalDurationSec % 3600) ~/ 60
+        : 5;
     int seconds = existing != null ? existing.totalDurationSec % 60 : 0;
     String targetAction = existing?.targetAction ?? 'ON';
     bool invertOnStartEnd = existing?.invertOnStartEnd ?? true;
@@ -315,7 +316,7 @@ class _TimerScreenState extends State<TimerScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Saklar Tembok (Servo)',
+                            'Switch (Servo)',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -421,11 +422,11 @@ class _TimerScreenState extends State<TimerScreen> {
                                     content: Text(
                                       ok
                                           ? (existing == null
-                                              ? 'Timer berhasil dibuat'
-                                              : 'Timer berhasil diperbarui')
+                                                ? 'Timer berhasil dibuat'
+                                                : 'Timer berhasil diperbarui')
                                           : (existing == null
-                                              ? 'Gagal membuat timer'
-                                              : 'Gagal memperbarui timer'),
+                                                ? 'Gagal membuat timer'
+                                                : 'Gagal memperbarui timer'),
                                     ),
                                   ),
                                 );
@@ -477,11 +478,7 @@ class _TimerScreenState extends State<TimerScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(
-                      Icons.timer_outlined,
-                      size: 16,
-                      color: AppColors.teal,
-                    ),
+                    Icon(Icons.timer_outlined, size: 16, color: AppColors.teal),
                     SizedBox(width: 6),
                     Text(
                       'Pewaktu Otomatis',
@@ -592,7 +589,7 @@ class _TimerScreenState extends State<TimerScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Buat timer hitung mundur untuk relay atau saklar. Timer yang selesai akan tersimpan dalam riwayat dan dapat dijalankan ulang.',
+              'Buat timer hitung mundur untuk relay atau switch. Timer yang selesai akan tersimpan dalam riwayat dan dapat dijalankan ulang.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,

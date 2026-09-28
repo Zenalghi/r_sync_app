@@ -277,7 +277,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Saklar Tembok (Servo)',
+                            'Switch Tembok (Servo)',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,

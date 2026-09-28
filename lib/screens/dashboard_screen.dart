@@ -585,7 +585,7 @@ class DashboardScreen extends StatelessWidget {
           const SizedBox(height: 8),
 
           Text(
-            'Aplikasi siap mengontrol Relay, Saklar Tembok, dan Layar OLED. Hubungkan smartphone ke jaringan ESP32 untuk mendeteksi perangkat secara otomatis.',
+            'Aplikasi siap mengontrol Relay, Switch (servo), dan Layar OLED. Hubungkan smartphone ke jaringan ESP32 untuk mendeteksi perangkat secara otomatis.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
@@ -723,7 +723,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Semua port Relay dan Saklar dinonaktifkan di konfigurasi hardware. Aktifkan port yang Anda gunakan di menu Pengaturan.',
+            'Semua port Relay dan Switch (servo) dinonaktifkan di konfigurasi hardware. Aktifkan port yang Anda gunakan di menu Pengaturan.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,

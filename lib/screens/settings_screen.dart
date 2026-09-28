@@ -558,11 +558,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 28),
 
-            // Section: Port Hardware Aktif (Relay & Saklar) - Only visible when connected
+            // Section: Port Hardware Aktif (Relay & Switch) - Only visible when connected
             if (espProvider.isConnected) ...[
               _buildSectionHeader(
                 icon: Icons.developer_board_rounded,
-                title: 'Port Hardware Aktif (Relay & Saklar)',
+                title: 'Port Hardware Aktif (Relay & Switch)',
                 isDark: isDark,
               ),
               const SizedBox(height: 12),
@@ -626,7 +626,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'PORT SAKLAR SWITCH AKTIF (SERVO)',
+                      'PORT SWITCH AKTIF (SERVO)',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -648,7 +648,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return FilterChip(
                           label: Text('Switch $name'),
                           selected: isActive,
-                          selectedColor: AppColors.indigo.withValues(alpha: 0.2),
+                          selectedColor: AppColors.indigo.withValues(
+                            alpha: 0.2,
+                          ),
                           checkmarkColor: AppColors.indigo,
                           labelStyle: TextStyle(
                             fontSize: 12,
@@ -806,23 +808,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       children: List.generate(caps.switchesCount, (idx) {
                         final isSelected = _selectedSwitchTab == idx;
+                        final names = ['A', 'B', 'C'];
+                        final swName = idx < names.length
+                            ? names[idx]
+                            : '${idx + 1}';
                         return Expanded(
                           child: Padding(
                             padding: EdgeInsets.only(
                               right: idx < caps.switchesCount - 1 ? 8.0 : 0.0,
                             ),
                             child: InkWell(
-                              onTap: () => setState(() => _selectedSwitchTab = idx),
+                              onTap: () =>
+                                  setState(() => _selectedSwitchTab = idx),
                               borderRadius: BorderRadius.circular(12),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppColors.teal.withValues(alpha: 0.18)
                                       : (isDark
-                                          ? Colors.white.withValues(alpha: 0.04)
-                                          : Colors.black.withValues(alpha: 0.03)),
+                                            ? Colors.white.withValues(
+                                                alpha: 0.04,
+                                              )
+                                            : Colors.black.withValues(
+                                                alpha: 0.03,
+                                              )),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isSelected
@@ -833,7 +846,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    'Saklar ${idx + 1}',
+                                    'Switch $swName',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: isSelected
@@ -842,8 +855,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       color: isSelected
                                           ? AppColors.teal
                                           : (isDark
-                                              ? AppColors.darkTextSecondary
-                                              : AppColors.lightTextSecondary),
+                                                ? AppColors.darkTextSecondary
+                                                : AppColors.lightTextSecondary),
                                     ),
                                   ),
                                 ),
@@ -859,14 +872,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // Active Switch Servo Pair (ON & OFF)
                     Builder(
                       builder: (ctx) {
-                        final sw = _selectedSwitchTab.clamp(0, caps.switchesCount - 1);
+                        final sw = _selectedSwitchTab.clamp(
+                          0,
+                          caps.switchesCount - 1,
+                        );
                         final servoOnIdx = sw * 2;
                         final servoOffIdx = sw * 2 + 1;
-                        final gpioPins = const [14, 27, 26, 25, 33, 32];
-                        final pinOn = servoOnIdx < gpioPins.length ? gpioPins[servoOnIdx] : 0;
-                        final pinOff = servoOffIdx < gpioPins.length ? gpioPins[servoOffIdx] : 0;
-                        final onAngle = _pressAngles.length > servoOnIdx ? _pressAngles[servoOnIdx] : _pressAngle;
-                        final offAngle = _pressAngles.length > servoOffIdx ? _pressAngles[servoOffIdx] : _pressAngle;
+                        // final gpioPins = const [14, 27, 26, 25, 33, 32];
+                        // final pinOn = servoOnIdx < gpioPins.length ? gpioPins[servoOnIdx] : 0;
+                        // final pinOff = servoOffIdx < gpioPins.length ? gpioPins[servoOffIdx] : 0;
+                        final onAngle = _pressAngles.length > servoOnIdx
+                            ? _pressAngles[servoOnIdx]
+                            : _pressAngle;
+                        final offAngle = _pressAngles.length > servoOffIdx
+                            ? _pressAngles[servoOffIdx]
+                            : _pressAngle;
 
                         return Column(
                           children: [
@@ -886,7 +906,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Row(
                                         children: [
@@ -896,8 +917,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                               vertical: 4,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: AppColors.teal.withValues(alpha: 0.15),
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: AppColors.teal.withValues(
+                                                alpha: 0.15,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: const Text(
                                               'SERVO ON',
@@ -909,17 +933,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'GPIO $pinOn',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isDark
-                                                  ? AppColors.darkTextMuted
-                                                  : AppColors.lightTextMuted,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
+                                          // const SizedBox(width: 8),
+                                          // Text(
+                                          //   'GPIO $pinOn',
+                                          //   style: TextStyle(
+                                          //     fontSize: 11,
+                                          //     color: isDark
+                                          //         ? AppColors.darkTextMuted
+                                          //         : AppColors.lightTextMuted,
+                                          //     fontWeight: FontWeight.w600,
+                                          //   ),
+                                          // ),
                                         ],
                                       ),
                                       Row(
@@ -937,17 +961,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             height: 28,
                                             child: OutlinedButton(
                                               onPressed: espProvider.isConnected
-                                                  ? () => espProvider.triggerServoTest(servoIdx: servoOnIdx)
+                                                  ? () => espProvider
+                                                        .triggerServoTest(
+                                                          servoIdx: servoOnIdx,
+                                                        )
                                                   : null,
                                               style: OutlinedButton.styleFrom(
                                                 foregroundColor: AppColors.teal,
-                                                side: const BorderSide(color: AppColors.teal),
-                                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                                side: const BorderSide(
+                                                  color: AppColors.teal,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                    ),
                                                 shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
                                                 ),
                                               ),
-                                              child: const Text('Tes ON', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                              child: const Text(
+                                                'Tes ON',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -982,14 +1021,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     : AppColors.orange.withValues(alpha: 0.04),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: AppColors.orange.withValues(alpha: 0.2),
+                                  color: AppColors.orange.withValues(
+                                    alpha: 0.2,
+                                  ),
                                 ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Row(
                                         children: [
@@ -999,8 +1041,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                               vertical: 4,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: AppColors.orange.withValues(alpha: 0.15),
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: AppColors.orange
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: const Text(
                                               'SERVO OFF',
@@ -1012,17 +1056,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'GPIO $pinOff',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isDark
-                                                  ? AppColors.darkTextMuted
-                                                  : AppColors.lightTextMuted,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
+                                          // const SizedBox(width: 8),
+                                          // Text(
+                                          //   'GPIO $pinOff',
+                                          //   style: TextStyle(
+                                          //     fontSize: 11,
+                                          //     color: isDark
+                                          //         ? AppColors.darkTextMuted
+                                          //         : AppColors.lightTextMuted,
+                                          //     fontWeight: FontWeight.w600,
+                                          //   ),
+                                          // ),
                                         ],
                                       ),
                                       Row(
@@ -1040,17 +1084,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             height: 28,
                                             child: OutlinedButton(
                                               onPressed: espProvider.isConnected
-                                                  ? () => espProvider.triggerServoTest(servoIdx: servoOffIdx)
+                                                  ? () => espProvider
+                                                        .triggerServoTest(
+                                                          servoIdx: servoOffIdx,
+                                                        )
                                                   : null,
                                               style: OutlinedButton.styleFrom(
-                                                foregroundColor: AppColors.orange,
-                                                side: const BorderSide(color: AppColors.orange),
-                                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                                foregroundColor:
+                                                    AppColors.orange,
+                                                side: const BorderSide(
+                                                  color: AppColors.orange,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                    ),
                                                 shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
                                                 ),
                                               ),
-                                              child: const Text('Tes OFF', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                              child: const Text(
+                                                'Tes OFF',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -1209,7 +1269,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 28),
             ],
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 12),
 
             // Section 4: Appearance & Theme
             _buildSectionHeader(
