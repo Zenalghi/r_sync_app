@@ -373,6 +373,8 @@ class DashboardScreen extends StatelessWidget {
               if (caps.switchesCount > 0) ...[
                 () {
                   final activeSwitches = caps.activeSwitchIndices;
+                  final isServoBusy =
+                      status.servoBusy || status.servoQueueLength > 0;
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -380,26 +382,84 @@ class DashboardScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Text(
-                              'Switch Servo (${activeSwitches.length})',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: isDark
-                                    ? AppColors.darkTextPrimary
-                                    : AppColors.lightTextPrimary,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    'Switch Servo (${activeSwitches.length})',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? AppColors.darkTextPrimary
+                                          : AppColors.lightTextPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isServoBusy) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 2.5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.indigo
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      status.servoQueueLength > 1
+                                          ? 'Antrean ${status.servoQueueLength}'
+                                          : 'Working..',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.indigo,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildCompactAction(
-                                icon: Icons.build_rounded,
-                                label: 'Tes',
-                                color: AppColors.indigo,
-                                onPressed: () => espProvider.triggerServoTest(),
-                              ),
+                              if (isServoBusy)
+                                Tooltip(
+                                  message: status.servoBusy
+                                      ? 'Working... (Servo bergerak)'
+                                      : 'Antrean servo: ${status.servoQueueLength}',
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.indigo
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const SizedBox(
+                                      width: 15,
+                                      height: 15,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.indigo,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                _buildCompactAction(
+                                  icon: Icons.build_rounded,
+                                  label: 'Tes',
+                                  color: AppColors.indigo,
+                                  onPressed: () =>
+                                      espProvider.triggerServoTest(),
+                                ),
                               const SizedBox(width: 6),
                               _buildCompactAction(
                                 icon: Icons.flash_on_rounded,
@@ -432,48 +492,6 @@ class DashboardScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      // Live Servo Busy / Queue Banner
-                      if (status.servoBusy || status.servoQueueLength > 0) ...[
-                        const SizedBox(height: 14),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.indigo.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: AppColors.indigo.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.indigo,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  status.servoBusy
-                                      ? 'Servo sedang bergerak...'
-                                      : 'Antrean servo: ${status.servoQueueLength} gerakan',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.indigo,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 14),
                       // Dynamic Switch Cards
                       ListView.separated(
