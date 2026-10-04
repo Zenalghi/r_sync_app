@@ -1,0 +1,175 @@
+name: Build & Release Multiplatform Apps
+
+on:
+  push:
+    tags:
+      - 'v*' # Otomatis terpanggil saat Anda push git tag, misal: git push origin v1.1.7
+  workflow_dispatch: # Tombol manual "Run workflow" di tab Actions GitHub
+    inputs:
+      release_tag:
+        description: 'Tag / Versi Rilis (contoh: v1.1.7)'
+        required: true
+        default: 'v1.1.7'
+
+permissions:
+  contents: write
+
+jobs:
+  # ----------------------------------------------------
+  # Job 1: Pengujian Otomatis & Analisis Kode
+  # ----------------------------------------------------
+  test:
+    name: 🧪 Run Tests & Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📁 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🚀 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Get Dependencies
+        run: flutter pub get
+
+      - name: 🔍 Static Code Analysis
+        run: flutter analyze
+
+      - name: 🧪 Run Automated Tests
+        run: flutter test
+
+  # ----------------------------------------------------
+  # Job 2: Build Paket Android (.APK)
+  # ----------------------------------------------------
+  build-android:
+    name: 🤖 Build Android APK
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📁 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🚀 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Get Dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Build Android Release APKs (Split per ABI & Universal)
+        run: |
+          flutter build apk --release --split-per-abi
+          flutter build apk --release
+
+      - name: 🏷️ Prepare APK Artifacts
+        run: |
+          mkdir -p artifacts
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk artifacts/r-sync-android-arm64-v8a.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk artifacts/r-sync-android-armeabi-v7a.apk
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/r-sync-android-universal.apk
+
+      - name: 📤 Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: artifacts/*.apk
+
+  # ----------------------------------------------------
+  # Job 3: Build Paket Windows Desktop (.ZIP)
+  # ----------------------------------------------------
+  build-windows:
+    name: 🪟 Build Windows Desktop App
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - name: 📁 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🚀 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: ⚙️ Enable Windows Desktop Support
+        run: flutter config --enable-windows-desktop
+
+      - name: 📦 Get Dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Build Windows Release
+        run: flutter build windows --release
+
+      - name: 📦 Zip Windows Release Executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath artifacts\r-sync-windows-x64.zip
+
+      - name: 📤 Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: artifacts/r-sync-windows-x64.zip
+
+  # ----------------------------------------------------
+  # Job 4: Publish ke Halaman "Releases" di GitHub
+  # ----------------------------------------------------
+  publish-release:
+    name: 🎉 Publish GitHub Release
+    needs: [build-android, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📁 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Download Android Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apks
+          path: release-assets
+
+      - name: 📥 Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-zip
+          path: release-assets
+
+      - name: 🏷️ Determine Release Tag Name
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.release_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🚀 Create Official GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          name: R-Sync Client ${{ steps.get_tag.outputs.tag }}
+          body: |
+            ### 📥 Panduan Memilih File Download:
+            - 📱 **`r-sync-android-arm64-v8a.apk` (19 MB)**: ⭐ **Rekomendasi Utama** untuk hampir semua smartphone Android modern (Samsung, Xiaomi, Oppo, Vivo, Poco, Realme, Pixel keluaran 2017 ke atas).
+            - 📱 **`r-sync-android-universal.apk` (53 MB)**: File APK universal yang menggabungkan seluruh arsitektur (pilih ini jika ragu tipe prosesor HP Anda).
+            - 📱 **`r-sync-android-armeabi-v7a.apk` (17 MB)**: Khusus untuk smartphone Android lawas dengan prosesor 32-bit.
+            - 💻 **`r-sync-windows-x64.zip`**: Versi desktop untuk PC/Laptop Windows (cukup ekstrak `.zip` dan jalankan `r_sync_app.exe`).
+          files: |
+            release-assets/r-sync-android-arm64-v8a.apk
+            release-assets/r-sync-android-armeabi-v7a.apk
+            release-assets/r-sync-android-universal.apk
+            release-assets/r-sync-windows-x64.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
