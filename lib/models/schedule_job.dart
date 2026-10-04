@@ -7,6 +7,7 @@ class ScheduleJob {
   final int minute;
   final String action; // 'ON' or 'OFF'
   final bool enabled;
+  final int targetAc; // 0 = ignore, 1 = ON, 2 = OFF
   final List<bool> targetRelays;   // Which relays this schedule controls
   final List<bool> targetSwitches; // Which switches this schedule controls
 
@@ -15,6 +16,7 @@ class ScheduleJob {
     required this.minute,
     required this.action,
     required this.enabled,
+    required this.targetAc,
     required this.targetRelays,
     required this.targetSwitches,
   });
@@ -34,11 +36,12 @@ class ScheduleJob {
 
   /// Whether this entry has no targets selected
   bool get hasNoTargets =>
-      targetRelays.every((r) => !r) && targetSwitches.every((s) => !s);
+      targetAc == 0 && targetRelays.every((r) => !r) && targetSwitches.every((s) => !s);
 
   /// Human-readable target summary
   String targetSummary({int relayCount = 4, int switchCount = 3}) {
     final parts = <String>[];
+    if (targetAc != 0) parts.add('AC Remote');
     for (int i = 0; i < relayCount && i < targetRelays.length; i++) {
       if (targetRelays[i]) parts.add('R${i + 1}');
     }
@@ -58,6 +61,7 @@ class ScheduleJob {
       minute: 0,
       action: 'OFF',
       enabled: false,
+      targetAc: 0,
       targetRelays: List.filled(relayCount, false),
       targetSwitches: List.filled(switchCount, false),
     );
@@ -86,6 +90,7 @@ class ScheduleJob {
       minute: (json['m'] as num?)?.toInt() ?? 0,
       action: (json['a'] as String?)?.toUpperCase() == 'ON' ? 'ON' : 'OFF',
       enabled: json['e'] as bool? ?? false,
+      targetAc: (json['ac'] as num?)?.toInt() ?? 0,
       targetRelays: relays,
       targetSwitches: switches,
     );
@@ -98,6 +103,7 @@ class ScheduleJob {
       'm': minute,
       'a': action.toUpperCase() == 'ON' ? 'ON' : 'OFF',
       'e': enabled,
+      'ac': targetAc,
       'r': targetRelays,
       's': targetSwitches,
     };
@@ -108,6 +114,7 @@ class ScheduleJob {
     int? minute,
     String? action,
     bool? enabled,
+    int? targetAc,
     List<bool>? targetRelays,
     List<bool>? targetSwitches,
   }) {
@@ -116,6 +123,7 @@ class ScheduleJob {
       minute: minute ?? this.minute,
       action: action ?? this.action,
       enabled: enabled ?? this.enabled,
+      targetAc: targetAc ?? this.targetAc,
       targetRelays: targetRelays ?? List<bool>.from(this.targetRelays),
       targetSwitches: targetSwitches ?? List<bool>.from(this.targetSwitches),
     );

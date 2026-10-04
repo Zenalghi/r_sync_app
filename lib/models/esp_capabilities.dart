@@ -18,6 +18,8 @@ class EspCapabilities {
   final bool oledConnected;    // New: OLED hardware detected
   final List<bool> activeRelays;   // New: which relay slots are active
   final List<bool> activeSwitches; // New: which switch slots are active
+  final bool acFeature;        // Whether the ESP has AC IR capabilities
+  final bool acActive;         // Whether the AC IR hardware port is enabled
 
   const EspCapabilities({
     this.deviceName = 'R-Sync ESP32 Server',
@@ -33,6 +35,8 @@ class EspCapabilities {
     this.oledConnected = false,
     this.activeRelays = const [true, true, true, true],
     this.activeSwitches = const [true, true, true],
+    this.acFeature = true,
+    this.acActive = true,
   });
 
   factory EspCapabilities.initial() {
@@ -76,6 +80,8 @@ class EspCapabilities {
           false,
       activeRelays: activeRelayList,
       activeSwitches: activeSwitchList,
+      acFeature: json['ac_feature'] as bool? ?? true,
+      acActive: json['ac_feature'] as bool? ?? true,
     );
   }
 
@@ -94,6 +100,7 @@ class EspCapabilities {
       'oled_connected': oledConnected,
       'active_relays': activeRelays,
       'active_switches': activeSwitches,
+      'ac_feature': acFeature,
     };
   }
 

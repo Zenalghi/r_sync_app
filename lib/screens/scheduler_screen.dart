@@ -44,6 +44,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
     String action =
         existing?.action ?? scheduleProvider.getNextRecommendedAction();
     bool enabled = existing?.enabled ?? true;
+    int targetAc = existing?.targetAc ?? 0;
     List<bool> selectedRelays = existing?.targetRelays != null
         ? List<bool>.from(existing!.targetRelays)
         : List.filled(caps.activeRelays.length, false);
@@ -213,7 +214,10 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                       ],
                       selected: {action},
                       onSelectionChanged: (val) =>
-                          setModalState(() => action = val.first),
+                          setModalState(() {
+                            action = val.first;
+                            if (targetAc != 0) targetAc = (action == 'ON') ? 1 : 2;
+                          }),
                     ),
 
                     const SizedBox(height: 20),
@@ -317,6 +321,48 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                       ),
                     ],
 
+                    if (caps.acActive) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(Icons.ac_unit, size: 16, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Remote AC',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      DeviceTargetChip(
+                        label: 'AC Control',
+                        selected: targetAc != 0,
+                        accent: Colors.cyan,
+                        onSelected: (val) {
+                          setModalState(() {
+                            // If user enables it, we map it based on schedule action. 
+                            // But since the user wants specific action for AC, let's keep it simple:
+                            // Target AC action depends on schedule action (1=ON, 2=OFF)
+                            targetAc = val ? (action == 'ON' ? 1 : 2) : 0;
+                          });
+                        },
+                      ),
+                      if (targetAc != 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Catatan: AC akan ikut di set ${action == 'ON' ? 'ON' : 'OFF'}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
+
                     // No target warning
                     if (selectedRelays.every((r) => !r) &&
                         selectedSwitches.every((s) => !s))
@@ -403,6 +449,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                                       minute: minute,
                                       action: action,
                                       enabled: enabled,
+                                      targetAc: targetAc,
                                       targetRelays: List<bool>.from(
                                         selectedRelays,
                                       ),

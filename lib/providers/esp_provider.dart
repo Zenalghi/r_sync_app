@@ -156,6 +156,18 @@ class EspProvider extends ChangeNotifier {
     return triggerSwitchAction(switchIdx, !currentState);
   }
 
+  Future<bool> sendAcCommand(Map<String, dynamic> payload) async {
+    try {
+      final success = await _apiService.sendAcCommand(_espIp, payload);
+      if (success) {
+        await _silentRefresh();
+      }
+      return success;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> triggerServoTest({int? servoIdx}) async {
     return _apiService.triggerServoTest(_espIp, servoIdx: servoIdx);
   }
@@ -189,6 +201,7 @@ class EspProvider extends ChangeNotifier {
     required int durationSec,
     required bool invertOnStartEnd,
     required String targetAction,
+    required int targetAc,
     required List<bool> targetRelays,
     required List<bool> targetSwitches,
   }) async {
@@ -197,6 +210,7 @@ class EspProvider extends ChangeNotifier {
       durationSec: durationSec,
       invertOnStartEnd: invertOnStartEnd,
       targetAction: targetAction,
+      targetAc: targetAc,
       targetRelays: targetRelays,
       targetSwitches: targetSwitches,
     );
@@ -211,6 +225,7 @@ class EspProvider extends ChangeNotifier {
     required int durationSec,
     required bool invertOnStartEnd,
     required String targetAction,
+    required int targetAc,
     required List<bool> targetRelays,
     required List<bool> targetSwitches,
   }) async {
@@ -220,6 +235,7 @@ class EspProvider extends ChangeNotifier {
       durationSec: durationSec,
       invertOnStartEnd: invertOnStartEnd,
       targetAction: targetAction,
+      targetAc: targetAc,
       targetRelays: targetRelays,
       targetSwitches: targetSwitches,
     );
@@ -267,11 +283,13 @@ class EspProvider extends ChangeNotifier {
   Future<bool> setHardwareConfig({
     required List<bool> relays,
     required List<bool> switches,
+    bool? acActive,
   }) async {
     final success = await _apiService.setHardwareConfig(
       _espIp,
       relays: relays,
       switches: switches,
+      acActive: acActive,
     );
     if (success) {
       _capabilities = EspCapabilities(
@@ -288,6 +306,8 @@ class EspProvider extends ChangeNotifier {
         oledConnected: _capabilities.oledConnected,
         activeRelays: relays,
         activeSwitches: switches,
+        acFeature: _capabilities.acFeature,
+        acActive: acActive ?? _capabilities.acActive,
       );
       await _capabilities.saveToLocal();
       _safeNotifyListeners();

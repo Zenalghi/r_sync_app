@@ -35,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isRefreshingSettings = false;
   List<bool> _activeRelays = [true, true, true, true];
   List<bool> _activeSwitches = [true, true, true];
+  bool _acActive = true;
   bool _isSavingHwConfig = false;
 
   @override
@@ -51,6 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _pressDurationMs = espProvider.status.pressDurationMs;
     _activeRelays = List<bool>.from(espProvider.capabilities.activeRelays);
     _activeSwitches = List<bool>.from(espProvider.capabilities.activeSwitches);
+    _acActive = espProvider.capabilities.acActive;
     _loadAppVersion();
   }
 
@@ -92,6 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _pressDurationMs = status.pressDurationMs;
       _activeRelays = List<bool>.from(caps.activeRelays);
       _activeSwitches = List<bool>.from(caps.activeSwitches);
+      _acActive = caps.acActive;
     });
   }
 
@@ -101,6 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final success = await espProvider.setHardwareConfig(
       relays: _activeRelays,
       switches: _activeSwitches,
+      acActive: _acActive,
     );
     if (mounted) {
       setState(() => _isSavingHwConfig = false);
@@ -558,11 +562,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 28),
 
-            // Section: Port Hardware Aktif (Relay & Switch) - Only visible when connected
+            // Section: Port Hardware Aktif - Only visible when connected
             if (espProvider.isConnected) ...[
               _buildSectionHeader(
                 icon: Icons.developer_board_rounded,
-                title: 'Port Hardware Aktif (Relay & Switch)',
+                title: 'Port Hardware Aktif',
                 isDark: isDark,
               ),
               const SizedBox(height: 12),
@@ -670,6 +674,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           },
                         );
                       }),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'REMOTE AC',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    FilterChip(
+                      label: const Text('Remote AC (IR Transmitter)'),
+                      selected: _acActive,
+                      selectedColor: AppColors.teal.withValues(
+                        alpha: isDark ? 0.4 : 0.2,
+                      ),
+                      checkmarkColor: AppColors.teal,
+                      labelStyle: TextStyle(
+                        color: _acActive
+                            ? AppColors.teal
+                            : (isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary),
+                        fontWeight: _acActive
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                      onSelected: (val) {
+                        setState(() {
+                          _acActive = val;
+                        });
+                      },
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(

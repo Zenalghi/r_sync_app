@@ -41,6 +41,7 @@ void main() {
         action: 'ON',
         enabled: true,
         targetRelays: [true, false, false, false],
+        targetAc: 0,
         targetSwitches: [false, false, false],
       );
       expect(configuredJob.hasNoTargets, false);
@@ -111,6 +112,7 @@ void main() {
       action: action,
       enabled: true,
       targetRelays: const [true, false, false, false],
+      targetAc: 0,
       targetSwitches: const [false, false, false],
     );
 

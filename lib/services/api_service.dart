@@ -138,6 +138,21 @@ class ApiService {
     }
   }
 
+  /// Sends AC command via `POST /api/ac`
+  Future<bool> sendAcCommand(String ip, Map<String, dynamic> payload) async {
+    final baseUrl = _formatBaseUrl(ip);
+    final uri = Uri.parse('$baseUrl/api/ac');
+    try {
+      final response = await _client
+          .post(uri, headers: _postHeaders, body: jsonEncode(payload))
+          .timeout(defaultTimeout);
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('ApiService sendAcCommand error: $e');
+      return false;
+    }
+  }
+
   /// Triggers servo self test via `POST /api/servo/test`
   /// If [servoIdx] is provided (0..5), runs test for that single servo only.
   Future<bool> triggerServoTest(String ip, {int? servoIdx}) async {
@@ -195,6 +210,7 @@ class ApiService {
     int? durationSec,
     bool? invertOnStartEnd,
     String? targetAction,
+    int? targetAc,
     List<bool>? targetRelays,
     List<bool>? targetSwitches,
   }) async {
@@ -205,6 +221,7 @@ class ApiService {
     if (durationSec != null) payload['durationSec'] = durationSec;
     if (invertOnStartEnd != null) payload['invertOnStartEnd'] = invertOnStartEnd;
     if (targetAction != null) payload['targetAction'] = targetAction;
+    if (targetAc != null) payload['targetAc'] = targetAc;
     if (targetRelays != null) payload['targetRelays'] = targetRelays;
     if (targetSwitches != null) payload['targetSwitches'] = targetSwitches;
 
@@ -245,6 +262,7 @@ class ApiService {
           durationSec: durationSec ?? 0,
           invertOnStartEnd: invertOnStartEnd ?? false,
           targetAction: targetAction ?? 'ON',
+          targetAc: targetAc ?? 0,
           targetRelays: targetRelays ?? const [],
           targetSwitches: targetSwitches ?? const [],
         );
@@ -287,6 +305,7 @@ class ApiService {
     required int durationSec,
     required bool invertOnStartEnd,
     required String targetAction,
+    required int targetAc,
     required List<bool> targetRelays,
     required List<bool> targetSwitches,
   }) => manageTimer(
@@ -295,6 +314,7 @@ class ApiService {
     durationSec: durationSec,
     invertOnStartEnd: invertOnStartEnd,
     targetAction: targetAction,
+    targetAc: targetAc,
     targetRelays: targetRelays,
     targetSwitches: targetSwitches,
   );
@@ -306,6 +326,7 @@ class ApiService {
     required int durationSec,
     required bool invertOnStartEnd,
     required String targetAction,
+    required int targetAc,
     required List<bool> targetRelays,
     required List<bool> targetSwitches,
   }) => manageTimer(
@@ -315,6 +336,7 @@ class ApiService {
     durationSec: durationSec,
     invertOnStartEnd: invertOnStartEnd,
     targetAction: targetAction,
+    targetAc: targetAc,
     targetRelays: targetRelays,
     targetSwitches: targetSwitches,
   );
@@ -515,7 +537,12 @@ class ApiService {
                   ?.map((e) => e as bool)
                   .toList() ??
               [];
-          return {'relays': relays, 'switches': switches};
+          final acActive = data['ac'] as bool? ?? true;
+          return {
+            'relays': relays, 
+            'switches': switches,
+            'ac': [acActive], // Wrap in list for generic return type compatibility
+          };
         }
       }
       return null;
@@ -530,10 +557,14 @@ class ApiService {
     String ip, {
     required List<bool> relays,
     required List<bool> switches,
+    bool? acActive,
   }) async {
     final baseUrl = _formatBaseUrl(ip);
     final uri = Uri.parse('$baseUrl/api/hardware/config');
-    final payload = {'relays': relays, 'switches': switches};
+    final payload = <String, dynamic>{'relays': relays, 'switches': switches};
+    if (acActive != null) {
+      payload['ac'] = acActive;
+    }
 
     try {
       final response = await _client

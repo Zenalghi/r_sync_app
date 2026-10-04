@@ -7,6 +7,7 @@ import '../constants/app_colors.dart';
 import '../providers/esp_provider.dart';
 import '../widgets/relay_card.dart';
 import '../widgets/wall_switch_card.dart';
+import '../widgets/ac_remote_card.dart';
 
 /// Main Dashboard screen with real-time relay and wall switch controls,
 /// quick master actions, and connection status overview.
@@ -522,7 +523,36 @@ class DashboardScreen extends StatelessWidget {
                   );
                 }(),
               ],
-
+              
+              // Section: AC Remote
+              if (caps.acActive) ...[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Remote Control',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    AcRemoteCard(isConnected: isConnected),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ],
+              
               // Connected but 0 active hardware
               if (caps.relaysCount == 0 && caps.switchesCount == 0) ...[
                 _buildNoActiveHardwareBanner(context, isDark),

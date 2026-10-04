@@ -27,6 +27,19 @@ class EspStatus {
   final int servoRailMinMv; // Lowest observed rail voltage reading (mV)
   final List<TimerJob> timers;
   final List<ScheduleJob> schedules; // New: global schedule list
+  
+  // AC Remote
+  final bool acPower;
+  final int acTemp;
+  final int acMode;
+  final int acFan;
+  final bool acSwingV;
+  final bool acSleep;
+  final bool acTurbo;
+  final bool acXFan;
+  final bool acLight;
+  final bool acIFeel;
+  final int acDisplayTemp;
 
   const EspStatus({
     required this.ip,
@@ -50,6 +63,17 @@ class EspStatus {
     this.servoRailMinMv = 0,
     required this.timers,
     required this.schedules,
+    this.acPower = false,
+    this.acTemp = 24,
+    this.acMode = 0,
+    this.acFan = 0,
+    this.acSwingV = false,
+    this.acSleep = false,
+    this.acTurbo = false,
+    this.acXFan = false,
+    this.acLight = true,
+    this.acIFeel = false,
+    this.acDisplayTemp = 1,
   });
 
   factory EspStatus.initial() {
@@ -75,6 +99,17 @@ class EspStatus {
       servoRailMinMv: 0,
       timers: [],
       schedules: [],
+      acPower: false,
+      acTemp: 24,
+      acMode: 0,
+      acFan: 0,
+      acSwingV: false,
+      acSleep: false,
+      acTurbo: false,
+      acXFan: false,
+      acLight: true,
+      acIFeel: false,
+      acDisplayTemp: 1,
     );
   }
 
@@ -175,6 +210,17 @@ class EspStatus {
       servoRailMinMv: json['servoRailMinMv'] as int? ?? 0,
       timers: timerList,
       schedules: scheduleList,
+      acPower: (json['ac']?['power'] as bool?) ?? false,
+      acTemp: (json['ac']?['temp'] as num?)?.toInt() ?? 24,
+      acMode: (json['ac']?['mode'] as num?)?.toInt() ?? 0,
+      acFan: (json['ac']?['fan'] as num?)?.toInt() ?? 0,
+      acSwingV: (json['ac']?['swing_v'] as bool?) ?? false,
+      acSleep: (json['ac']?['sleep'] as bool?) ?? false,
+      acTurbo: (json['ac']?['turbo'] as bool?) ?? false,
+      acXFan: (json['ac']?['xfan'] as bool?) ?? false,
+      acLight: (json['ac']?['light'] as bool?) ?? true,
+      acIFeel: (json['ac']?['ifeel'] as bool?) ?? false,
+      acDisplayTemp: (json['ac']?['display_temp'] as num?)?.toInt() ?? 1,
     );
   }
 
@@ -242,6 +288,17 @@ class EspStatus {
     int? servoRailMinMv,
     List<TimerJob>? timers,
     List<ScheduleJob>? schedules,
+    bool? acPower,
+    int? acTemp,
+    int? acMode,
+    int? acFan,
+    bool? acSwingV,
+    bool? acSleep,
+    bool? acTurbo,
+    bool? acXFan,
+    bool? acLight,
+    bool? acIFeel,
+    int? acDisplayTemp,
   }) {
     return EspStatus(
       ip: ip ?? this.ip,
@@ -265,6 +322,17 @@ class EspStatus {
       servoRailMinMv: servoRailMinMv ?? this.servoRailMinMv,
       timers: timers ?? this.timers,
       schedules: schedules ?? this.schedules,
+      acPower: acPower ?? this.acPower,
+      acTemp: acTemp ?? this.acTemp,
+      acMode: acMode ?? this.acMode,
+      acFan: acFan ?? this.acFan,
+      acSwingV: acSwingV ?? this.acSwingV,
+      acSleep: acSleep ?? this.acSleep,
+      acTurbo: acTurbo ?? this.acTurbo,
+      acXFan: acXFan ?? this.acXFan,
+      acLight: acLight ?? this.acLight,
+      acIFeel: acIFeel ?? this.acIFeel,
+      acDisplayTemp: acDisplayTemp ?? this.acDisplayTemp,
     );
   }
 }

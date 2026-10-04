@@ -26,6 +26,7 @@ class _TimerScreenState extends State<TimerScreen> {
         : 5;
     int seconds = existing != null ? existing.totalDurationSec % 60 : 0;
     String targetAction = existing?.targetAction ?? 'ON';
+    int targetAc = existing?.targetAc ?? 0;
     bool invertOnStartEnd = existing?.invertOnStartEnd ?? true;
 
     final List<bool> selectedRelays = List.generate(
@@ -252,7 +253,10 @@ class _TimerScreenState extends State<TimerScreen> {
                       ],
                       selected: {targetAction},
                       onSelectionChanged: (val) =>
-                          setModalState(() => targetAction = val.first),
+                          setModalState(() {
+                            targetAction = val.first;
+                            if (targetAc != 0) targetAc = (targetAction == 'ON') ? 1 : 2;
+                          }),
                     ),
 
                     const SizedBox(height: 16),
@@ -267,6 +271,45 @@ class _TimerScreenState extends State<TimerScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+
+                    if (caps.acActive) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.ac_unit, size: 16, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Remote AC',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      DeviceTargetChip(
+                        label: 'AC Control',
+                        selected: targetAc != 0,
+                        accent: Colors.cyan,
+                        onSelected: (val) {
+                          setModalState(() {
+                            targetAc = val ? (targetAction == 'ON' ? 1 : 2) : 0;
+                          });
+                        },
+                      ),
+                      if (targetAc != 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Catatan: AC akan ikut di set ${targetAction == 'ON' ? 'ON' : 'OFF'}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                    ],
 
                     if (caps.relaysCount > 0) ...[
                       Row(
@@ -403,6 +446,7 @@ class _TimerScreenState extends State<TimerScreen> {
                                   durationSec: totalSec,
                                   invertOnStartEnd: invertOnStartEnd,
                                   targetAction: targetAction,
+                                  targetAc: targetAc,
                                   targetRelays: selectedRelays,
                                   targetSwitches: selectedSwitches,
                                 );
@@ -412,6 +456,7 @@ class _TimerScreenState extends State<TimerScreen> {
                                   durationSec: totalSec,
                                   invertOnStartEnd: invertOnStartEnd,
                                   targetAction: targetAction,
+                                  targetAc: targetAc,
                                   targetRelays: selectedRelays,
                                   targetSwitches: selectedSwitches,
                                 );

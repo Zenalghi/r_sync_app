@@ -10,6 +10,7 @@ class TimerJob {
   final bool finished;
   final bool invertOnStartEnd;
   final String targetAction; // "ON" or "OFF"
+  final int targetAc; // 0 = ignore, 1 = ON, 2 = OFF
   final List<bool> targetRelays;
   final List<bool> targetSwitches;
 
@@ -21,6 +22,7 @@ class TimerJob {
     this.finished = false,
     required this.invertOnStartEnd,
     required this.targetAction,
+    required this.targetAc,
     required this.targetRelays,
     required this.targetSwitches,
   });
@@ -45,6 +47,7 @@ class TimerJob {
       finished: json['finished'] as bool? ?? false,
       invertOnStartEnd: json['invertOnStartEnd'] as bool? ?? false,
       targetAction: json['targetAction'] as String? ?? 'ON',
+      targetAc: json['targetAc'] as int? ?? 0,
       targetRelays: rList,
       targetSwitches: sList,
     );
@@ -56,6 +59,7 @@ class TimerJob {
 
   String targetSummary({int relayCount = 4, int switchCount = 3}) {
     final parts = <String>[];
+    if (targetAc != 0) parts.add('AC Remote');
     for (int i = 0; i < relayCount && i < targetRelays.length; i++) {
       if (targetRelays[i]) parts.add('R${i + 1}');
     }
